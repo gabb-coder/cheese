@@ -2,6 +2,7 @@
 
 import { h, calm } from '../dom.js';
 import { countdown, nightNotes, holdCard, nameOf, listNames, dieFace, avatar, art } from '../components.js';
+import { t, tx } from '../i18n.js';
 
 export function key(view) {
   const isHost = view.room.hostId === view.me.id;
@@ -24,7 +25,7 @@ export function render(ctx) {
 export function update({ state }) {
   const view = state.view;
   if (progress && view.vote) {
-    progress.textContent = `${view.vote.votedIds.length} of ${view.players.length} have voted`;
+    progress.textContent = t('vote.progress', { n: view.vote.votedIds.length, total: view.players.length });
   }
 }
 
@@ -75,21 +76,21 @@ function countUp(list) {
   seen.observe(list);
 }
 
-const playerOf = (view, id) => view.players.find((p) => p.id === id) ?? { id, name: 'someone' };
+const playerOf = (view, id) => view.players.find((p) => p.id === id) ?? { id, name: t('someone') };
 
 function discussion({ state, actions }) {
   const view = state.view;
   const isHost = view.room.hostId === view.me.id;
   progress = null;
   return h('section', { class: 'screen-inner' },
-    h('div', { class: 'page-title' }, h('span', { class: 'eyebrow' }, 'Morning in the mouse house'), h('h1', {}, 'Who took the cheese?')),
-    h('p', { class: 'center muted' }, 'Take turns: when did you wake up, and was the cheese there? Anyone may fib.'),
+    h('div', { class: 'page-title' }, h('span', { class: 'eyebrow' }, t('day.eyebrow')), h('h1', {}, t('day.title'))),
+    h('p', { class: 'center muted' }, t('day.intro')),
     nightNotes(view),
     h('div', { class: 'grow' }),
-    countdown(view.phase.endsAt, 'Voting starts in'),
+    countdown(view.phase.endsAt, t('day.voteIn')),
     isHost
-      ? h('button', { class: 'btn-primary btn-block', onClick: () => actions.send({ t: 'endDiscussion' }) }, "Everyone's ready: vote now")
-      : h('p', { class: 'muted small center' }, 'The host can start the vote early.'),
+      ? h('button', { class: 'btn-primary btn-block', onClick: () => actions.send({ t: 'endDiscussion' }) }, t('day.ready'))
+      : h('p', { class: 'muted small center' }, t('day.hostEarly')),
     holdCard(view.me, { compact: true }),
   );
 }
@@ -104,11 +105,11 @@ function vote({ state, actions }) {
   if (myVote) {
     body = h('div', { class: 'card voted pop-in' },
       avatar(playerOf(view, myVote), 72),
-      h('p', {}, 'You voted for ', h('strong', {}, nameOf(view, myVote)), '.'),
-      h('p', { class: 'muted small' }, 'Votes are revealed when everyone has voted or time runs out.'));
+      h('p', {}, tx('vote.youVoted', { name: h('strong', {}, nameOf(view, myVote)) })),
+      h('p', { class: 'muted small' }, t('vote.revealed')));
   } else {
     // Tap a mouse, then confirm: a vote is final once sent.
-    const confirmBtn = h('button', { class: 'btn-primary btn-block btn-big', disabled: true }, 'Pick a mouse');
+    const confirmBtn = h('button', { class: 'btn-primary btn-block btn-big', disabled: true }, t('vote.pick'));
     let picked = null;
     const buttons = view.players.filter((p) => p.id !== view.me.id).map((p) => {
       const btn = h('button', {
@@ -118,7 +119,7 @@ function vote({ state, actions }) {
           picked = p.id;
           for (const b of buttons) b.setAttribute('aria-pressed', String(b === btn));
           confirmBtn.disabled = false;
-          confirmBtn.textContent = `Vote for ${p.name}`;
+          confirmBtn.textContent = t('vote.for', { name: p.name });
         },
       }, avatar(p, 52), h('span', { class: 'n' }, p.name, p.connected ? '' : ' 📵'));
       return btn;
@@ -128,17 +129,17 @@ function vote({ state, actions }) {
     });
     const offline = view.players.some((p) => !p.connected);
     body = [h('div', { class: 'vote-grid' }, buttons), confirmBtn,
-      offline ? h('p', { class: 'muted small center' }, '📵 = phone offline right now') : null];
+      offline ? h('p', { class: 'muted small center' }, t('vote.offline')) : null];
   }
 
   return h('section', { class: 'screen-inner' },
-    h('div', { class: 'page-title' }, h('span', { class: 'eyebrow' }, 'Secret vote'), h('h1', {}, 'Point at the Thief')),
-    h('p', { class: 'center muted' }, 'Nobody sees your vote until everyone has voted.'),
+    h('div', { class: 'page-title' }, h('span', { class: 'eyebrow' }, t('vote.eyebrow')), h('h1', {}, t('vote.title'))),
+    h('p', { class: 'center muted' }, t('vote.secret')),
     body,
     progress,
     h('div', { class: 'grow' }),
-    countdown(view.phase.endsAt, 'Voting ends in'),
-    h('details', { class: 'card' }, h('summary', {}, '📜  Your night notes'), nightNotes(view)),
+    countdown(view.phase.endsAt, t('vote.endsIn')),
+    h('details', { class: 'card' }, h('summary', {}, t('vote.notes')), nightNotes(view)),
   );
 }
 
@@ -167,7 +168,7 @@ function results({ state, actions }) {
       h('div', { class: 'bar-wrap' },
         h('span', { class: 'n' }, p.name, p.id === r.thiefId ? '  🧀' : ''),
         h('div', { class: 'bar' }, bar),
-        voters[p.id] ? h('span', { class: 'from' }, `from ${listNames(view, voters[p.id])}`) : null),
+        voters[p.id] ? h('span', { class: 'from' }, t('results.from', { names: listNames(view, voters[p.id]) })) : null),
       h('span', { class: 'count', 'data-n': count }, '0'));
   };
 
@@ -176,40 +177,40 @@ function results({ state, actions }) {
   if (iWon && !celebrated && !calm()) setTimeout(cheeseConfetti, 900);
   celebrated = true;
 
-  const roleOf = (p) => (p.id === r.thiefId ? 'Thief' : p.id === r.followerId ? 'Follower' : 'Sleepyhead');
+  const roleOf = (p) => t(p.id === r.thiefId ? 'results.thief' : p.id === r.followerId ? 'results.follower' : 'results.sleepyhead');
 
   return h('section', { class: 'screen-inner' },
     h('div', { class: 'card verdict' },
-      h('span', { class: `stamp ${r.thiefCaught ? 'caught' : 'away'}` }, r.thiefCaught ? 'Caught!' : 'Got away!'),
+      h('span', { class: `stamp ${r.thiefCaught ? 'caught' : 'away'}` }, t(r.thiefCaught ? 'results.caught' : 'results.away')),
       art('role-thief', 'pop-in'),
-      h('h1', {}, r.thiefCaught ? `${thief.name} was the Thief!` : `${thief.name} got away with it!`),
-      h('p', { class: 'muted' }, r.thiefCaught ? 'The Sleepyheads win.' : `The Thief and the Follower, ${follower.name}, win.`),
-      h('span', { class: `ribbon ${iWon ? 'win' : 'lose'}` }, iWon ? '🎉  You win!' : 'You lose this time'),
+      h('h1', {}, t(r.thiefCaught ? 'results.wasThief' : 'results.gotAway', { name: thief.name })),
+      h('p', { class: 'muted' }, r.thiefCaught ? t('results.sleepyWin') : t('results.thiefWin', { name: follower.name })),
+      h('span', { class: `ribbon ${iWon ? 'win' : 'lose'}` }, t(iWon ? 'results.youWin' : 'results.youLose')),
     ),
     h('div', { class: 'card' },
       h('div', { class: 'reveal-row' }, avatar(thief, 44),
-        h('div', { class: 'who' }, h('span', { class: 'label' }, 'CHEESE THIEF'), h('strong', {}, thief.name))),
+        h('div', { class: 'who' }, h('span', { class: 'label' }, t('results.thiefLabel')), h('strong', {}, thief.name))),
       h('div', { class: 'reveal-row' }, avatar(follower, 44),
-        h('div', { class: 'who' }, h('span', { class: 'label' }, 'FOLLOWER'), h('strong', {}, follower.name),
-          h('span', { class: 'how' }, r.followerPickedBy === 'random' ? 'picked at random' : 'chosen by the Thief'))),
+        h('div', { class: 'who' }, h('span', { class: 'label' }, t('results.followerLabel')), h('strong', {}, follower.name),
+          h('span', { class: 'how' }, t(r.followerPickedBy === 'random' ? 'results.random' : 'results.chosen')))),
     ),
     h('div', { class: 'card' },
-      h('h3', {}, 'The votes'),
+      h('h3', {}, t('results.votes')),
       tally,
-      abstained.length ? h('p', { class: 'muted small' }, `Didn't vote: ${listNames(view, abstained.map((p) => p.id))}`) : null,
+      abstained.length ? h('p', { class: 'muted small' }, t('results.noVote', { names: listNames(view, abstained.map((p) => p.id)) })) : null,
     ),
     h('div', { class: 'card' },
-      h('h3', {}, "Everyone's cards"),
+      h('h3', {}, t('results.cards')),
       h('ul', { class: 'everyone' }, view.players.map((p) => h('li', { class: r.winners.includes(p.id) ? 'won' : '' },
         avatar(p, 36),
-        h('div', { class: 'who' }, h('span', { class: 'n' }, p.name), h('span', { class: 'r' }, `${roleOf(p)}${r.winners.includes(p.id) ? ' · won' : ''}`)),
+        h('div', { class: 'who' }, h('span', { class: 'n' }, p.name), h('span', { class: 'r' }, `${roleOf(p)}${r.winners.includes(p.id) ? t('results.won') : ''}`)),
         dieFace(r.dice[p.id], 30)))),
     ),
     h('div', { class: 'actions' },
       isHost
-        ? h('button', { class: 'btn-primary btn-block btn-big', onClick: () => actions.send({ t: 'playAgain' }) }, '🔁  Play again')
-        : h('p', { class: 'muted center' }, h('span', { class: 'dots' }, `Waiting for ${nameOf(view, view.room.hostId)} to start another round`)),
-      h('button', { class: 'btn-ghost', onClick: () => actions.leave() }, 'Leave room'),
+        ? h('button', { class: 'btn-primary btn-block btn-big', onClick: () => actions.send({ t: 'playAgain' }) }, t('results.again'))
+        : h('p', { class: 'muted center' }, h('span', { class: 'dots' }, t('results.waitAgain', { name: nameOf(view, view.room.hostId) }))),
+      h('button', { class: 'btn-ghost', onClick: () => actions.leave() }, t('lobby.leave')),
     ),
   );
 }

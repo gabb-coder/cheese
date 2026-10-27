@@ -2,6 +2,8 @@
 // its own clock is off and timers agree across phones. One interval updates every
 // countdown on screen.
 
+import { t } from './i18n.js';
+
 let offset = 0;
 
 export function syncServerTime(serverNow) {
@@ -16,7 +18,7 @@ export function startCountdowns() {
       const endsAt = Number(el.dataset.endsAt);
       const total = Number(el.dataset.total) || 1;
       const left = Math.max(0, endsAt - serverNow());
-      el.querySelector('.secs').textContent = `${Math.ceil(left / 1000)}s`;
+      el.querySelector('.secs').textContent = t('unit.secShort', { n: Math.ceil(left / 1000) });
       el.querySelector('.bar > i').style.width = `${Math.min(100, (left / total) * 100)}%`;
       // The last five seconds pulse, except on the short fixed steps that are nearly all "last".
       el.classList.toggle('urgent', left > 0 && left <= 5000 && total > 8000);

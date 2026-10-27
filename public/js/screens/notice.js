@@ -9,7 +9,7 @@ export function render({ notice, actions }) {
     h('div', { class: 'card hero' },
       h('h2', {}, notice.title),
       h('p', { class: 'muted' }, notice.text),
-      h('button', { class: 'btn-primary btn-block', onClick: () => actions.dismissNotice() }, notice.action ?? 'Back to start'),
+      h('button', { class: 'btn-primary btn-block', onClick: () => actions.dismissNotice() }, notice.action),
     ),
   );
 }

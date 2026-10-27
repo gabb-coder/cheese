@@ -70,8 +70,10 @@
   --cloud-o: 0.16;
   --urgent: #ff8a3d;
 
-  --font-display: 'Fredoka', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
-  --font-body: 'Nunito', ui-rounded, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Chinese characters fall through to the phone's own CJK font. */
+  --cjk: 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Noto Sans CJK SC', 'Microsoft YaHei', 'Source Han Sans SC';
+  --font-display: 'Fredoka', ui-rounded, 'SF Pro Rounded', var(--cjk), system-ui, sans-serif;
+  --font-body: 'Nunito', ui-rounded, system-ui, -apple-system, 'Segoe UI', Roboto, var(--cjk), sans-serif;
   --radius: 22px;
   --radius-sm: 14px;
   --tap: 56px;
@@ -257,7 +259,9 @@ strong { font-weight: 800; }
   flex-direction: column;
   gap: 18px;
 }
+.screen { position: relative; }
 .screen.center { justify-content: center; align-items: center; }
+.corner { position: absolute; top: calc(env(safe-area-inset-top) + 12px); right: 12px; z-index: 2; }
 .screen.center > .art { width: min(70%, 240px); }
 .screen.center > .card { width: 100%; }
 
@@ -376,6 +380,22 @@ button:focus-visible { outline: 4px solid color-mix(in srgb, var(--cheddar) 75%,
 }
 .icon-btn svg { width: 24px; height: 24px; }
 .icon-btn[aria-pressed="true"] { background: var(--cheddar); color: var(--ink); }
+.topbar-right { display: flex; gap: 8px; }
+
+/* Settings sheet (language) */
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 40;
+  display: grid; align-items: end; justify-items: center;
+  padding: var(--gutter) var(--gutter) calc(env(safe-area-inset-bottom) + var(--gutter));
+  background: rgb(8 6 30 / 0.55);
+  animation: fade-in 0.2s ease both;
+}
+.sheet { width: min(100%, 440px); animation: sheet-up 0.35s cubic-bezier(.2,1.2,.4,1) both; }
+.lang-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.lang-option { background: var(--surface-2); color: var(--on-surface); }
+.lang-option[aria-pressed="true"] { background: var(--cheddar); color: var(--ink); }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
 
 .row { display: flex; gap: 10px; align-items: center; }
 .row > .grow { min-width: 0; }
@@ -441,7 +461,7 @@ body[data-mood="morning"] .error-text { color: var(--tomato); }
 }
 .seat > .grow { min-width: 0; }
 .seat .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 1.02rem var(--font-display); }
-.seat .sub { font-size: 0.78rem; color: var(--on-surface-muted); font-weight: 700; }
+.seat .sub { font-size: 0.78rem; color: var(--on-surface-muted); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .seat.offline { opacity: 0.5; }
 .seat.empty { justify-content: center; border-style: dashed; background: transparent; color: var(--on-surface-muted); font: 600 0.9rem var(--font-display); }
 .seat.me { border-color: var(--cheddar-deep); box-shadow: inset 0 0 0 2px var(--cheddar); }

@@ -49,6 +49,12 @@ npm i --no-save playwright && npx playwright install chromium
 npm run test:e2e
 ```
 
+## Languages
+English and Simplified Chinese (Mandarin, 奶酪大盗). Each phone picks its own language with
+the ⚙️ button (Home, Lobby and the in-game top bar); it starts in Chinese when the phone's
+language is Chinese. The choice stays on the phone, and the narration speaks it too. All
+text lives in `public/js/i18n.js`; `test/i18n.test.js` checks both languages match.
+
 ## Art and fonts
 All illustrations (the mice, cheese, moon, mouse hole, …) are original SVGs, in
 `public/img` or drawn in code in `public/js/components.js`, made for this project.

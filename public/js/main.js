@@ -8,6 +8,7 @@ import { h, toast, swap } from './dom.js';
 import { syncServerTime, startCountdowns } from './clock.js';
 import { stepKey, lineFor, narratesHere, toggleNarration, speak, unlockSpeech } from './narrator.js';
 import { unlockAudio, chime, buzz, wantWakeLock, retryWakeLock } from './cues.js';
+import { t, setLang, errorText } from './i18n.js';
 import * as connecting from './screens/connecting.js';
 import * as home from './screens/home.js';
 import * as lobby from './screens/lobby.js';
@@ -16,18 +17,17 @@ import * as notice from './screens/notice.js';
 
 const SCREENS = { connecting, home, lobby, game, notice };
 
-const NOTICES = {
-  expired: { title: 'Room expired', text: 'That room has gone to sleep. Create a new one!' },
-  serverRestart: { title: 'Room expired', text: 'The server restarted, so the room was cleared. Create a new one!' },
-  empty: { title: 'Room closed', text: 'Everyone left the room.' },
-  seatGone: { title: 'Seat not found', text: 'Your seat in that room is gone. Join again with the room code.' },
-  kicked: { title: 'Removed from room', text: 'The host removed you from the room.' },
-  replaced: {
-    title: 'Playing somewhere else',
-    text: 'You opened your seat on another tab or device.',
-    action: 'Play on this device',
-  },
-};
+// Full-screen notices; the text is in i18n.js under notice.<key>.
+const NOTICES = new Set(['expired', 'serverRestart', 'empty', 'seatGone', 'kicked', 'replaced']);
+
+function noticeText(key) {
+  if (!key) return null;
+  return {
+    title: t(`notice.${key}.title`),
+    text: t(`notice.${key}.text`),
+    action: key === 'replaced' ? t('notice.replaced.action') : t('notice.back'),
+  };
+}
 
 const app = document.getElementById('app');
 const conn = new Connection();
@@ -46,7 +46,7 @@ const state = {
 
 const actions = {
   send(msg) {
-    if (!conn.send(msg)) toast('Reconnecting… try again in a moment');
+    if (!conn.send(msg)) toast(t('conn.retrySoon'));
   },
   create(name) {
     prefs.name = name;
@@ -70,6 +70,14 @@ const actions = {
   },
   reconnect() {
     conn.reconnectNow();
+  },
+  setLanguage(code) {
+    setLang(code);
+    // Redraw everything in the new language.
+    current = null;
+    banner?.remove();
+    banner = null;
+    render();
   },
   dismissNotice() {
     const key = state.notice;
@@ -137,7 +145,7 @@ conn.addEventListener('message', ({ detail: msg }) => {
       // may have started long ago.
       onStep(state.freshConnection ? null : state.view, msg);
       if (state.view && !state.freshConnection && msg.room.hostId === msg.me.id && state.view.room.hostId !== msg.me.id) {
-        toast("You're the host now 👑");
+        toast(t('conn.nowHost'));
       }
       state.freshConnection = false;
       state.view = msg;
@@ -148,7 +156,7 @@ conn.addEventListener('message', ({ detail: msg }) => {
       setRoomInUrl(null);
       break;
     case 'roomClosed':
-      forgetRoom(NOTICES[msg.reason] ? msg.reason : 'expired');
+      forgetRoom(NOTICES.has(msg.reason) ? msg.reason : 'expired');
       break;
     case 'error':
       handleError(msg);
@@ -168,9 +176,9 @@ function handleError(msg) {
     state.view = null;
     state.notice = 'replaced';
   } else if (msg.for === 'create' || msg.for === 'join') {
-    state.homeError = msg.message;
+    state.homeError = errorText(msg);
   } else {
-    toast(msg.message);
+    toast(errorText(msg));
   }
 }
 
@@ -219,7 +227,7 @@ function screenName() {
 
 function render() {
   const name = screenName();
-  const ctx = { state, actions, notice: NOTICES[state.notice] };
+  const ctx = { state, actions, notice: noticeText(state.notice) };
   const screen = SCREENS[name];
   document.body.dataset.screen = name;
   if (current === name && screen.update) {
@@ -232,7 +240,7 @@ function render() {
   // Mid-game drop: keep the screen, show that we're reconnecting.
   const showBanner = Boolean(state.view) && state.status !== 'open';
   if (showBanner && !banner) {
-    banner = h('div', { class: 'banner', role: 'status' }, h('span', { class: 'dots' }, 'Reconnecting'));
+    banner = h('div', { class: 'banner', role: 'status' }, h('span', { class: 'dots' }, t('conn.reconnecting')));
     document.body.append(banner);
   } else if (!showBanner && banner) {
     banner.remove();

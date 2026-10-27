@@ -36,4 +36,6 @@ export const prefs = {
   set name(value) { write('name', value); },
   get narration() { return read('narration'); },
   set narration(value) { write('narration', value); },
+  get lang() { return read('lang'); },
+  set lang(value) { write('lang', value); },
 };

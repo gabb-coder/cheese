@@ -3,7 +3,8 @@
 // reset just because someone else reconnected).
 
 import { h, swap } from '../dom.js';
-import { narrationButton } from '../components.js';
+import { narrationButton, settingsButton } from '../components.js';
+import { t } from '../i18n.js';
 import { narratesHere, lineFor } from '../narrator.js';
 import * as reveal from './reveal.js';
 import * as night from './night.js';
@@ -31,7 +32,7 @@ export function render(ctx) {
   caption = h('p', { class: 'caption', 'aria-live': 'polite' });
   body = h('div', { class: 'game-body' });
   const root = h('div', { class: 'game' },
-    h('div', { class: 'topbar' }, h('span', { class: 'room-pill' }, `ROOM ${ctx.state.view.room.code}`), narrBtnSlot),
+    h('div', { class: 'topbar' }, h('span', { class: 'room-pill' }, t('game.room', { code: ctx.state.view.room.code })), narrBtnSlot),
     caption,
     body,
   );
@@ -54,5 +55,6 @@ export function update(ctx) {
   } else {
     screen.update?.(ctx);
   }
-  narrBtnSlot.replaceChildren(narrationButton(narratesHere(view), () => ctx.actions.toggleNarration()));
+  narrBtnSlot.replaceChildren(narrationButton(narratesHere(view), () => ctx.actions.toggleNarration()),
+    settingsButton(ctx.actions.setLanguage));
 }
