@@ -5,7 +5,7 @@
 import { h, swap } from '../dom.js';
 import { narrationButton, settingsButton } from '../components.js';
 import { t } from '../i18n.js';
-import { narratesHere, lineFor } from '../narrator.js';
+import { narratesHere, musicHere, lineFor } from '../narrator.js';
 import * as reveal from './reveal.js';
 import * as night from './night.js';
 import * as day from './day.js';
@@ -56,5 +56,6 @@ export function update(ctx) {
     screen.update?.(ctx);
   }
   narrBtnSlot.replaceChildren(narrationButton(narratesHere(view), () => ctx.actions.toggleNarration()),
-    settingsButton({ onLanguage: ctx.actions.setLanguage, narration: { on: narratesHere(view), set: ctx.actions.setNarration } }));
+    settingsButton({ onLanguage: ctx.actions.setLanguage, narration: { on: narratesHere(view), set: ctx.actions.setNarration },
+      music: { on: musicHere(view), set: ctx.actions.setMusic } }));
 }

@@ -287,9 +287,18 @@ function gearIcon() {
   ]);
 }
 
-// `narration` is { on, set(on) } when in a room, so this phone can turn the narrator on or off.
-export function settingsButton({ onLanguage, narration = null }) {
-  return h('button', { class: 'icon-btn', 'aria-label': t('settings.open'), onClick: () => openSettings(onLanguage, narration) }, gearIcon());
+// `narration` and `music` are { on, set(on) } when in a room, so this phone can turn them on or off.
+export function settingsButton({ onLanguage, narration = null, music = null }) {
+  return h('button', { class: 'icon-btn', 'aria-label': t('settings.open'), onClick: () => openSettings(onLanguage, narration, music) }, gearIcon());
+}
+
+// An On/Off pair for a { on, set } setting.
+function onOff(setting) {
+  let on = setting.on;
+  return choices([[true, t('settings.on')], [false, t('settings.off')]], (v) => v === on, (v) => {
+    on = v;
+    setting.set(v);
+  });
 }
 
 function choices(items, isOn, onPick) {
@@ -303,7 +312,7 @@ function choices(items, isOn, onPick) {
   return h('div', { class: 'choices' }, buttons);
 }
 
-function openSettings(onLanguage, narration) {
+function openSettings(onLanguage, narration, music) {
   document.querySelector('.sheet-backdrop')?.remove();
   const close = () => {
     backdrop.remove();
@@ -315,7 +324,6 @@ function openSettings(onLanguage, narration) {
     close();
     onLanguage(code);
   });
-  let narrating = narration?.on;
   const backdrop = h('div', { class: 'sheet-backdrop', onClick: (e) => { if (e.target === backdrop) close(); } },
     h('div', { class: 'card sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('settings.title') },
       h('h2', {}, t('settings.title')),
@@ -323,11 +331,11 @@ function openSettings(onLanguage, narration) {
       languages,
       h('div', { class: 'label' }, t('settings.narrator')),
       narration ? h('p', { class: 'small' }, t('settings.narrateHere')) : null,
-      narration ? choices([[true, t('settings.on')], [false, t('settings.off')]], (v) => v === narrating, (v) => {
-        narrating = v;
-        narration.set(v);
-      }) : null,
+      narration ? onOff(narration) : null,
       h('button', { class: 'btn-secondary btn-small', onClick: () => testVoice() }, t('narr.test')),
+      music ? h('div', { class: 'label' }, t('settings.music')) : null,
+      music ? h('p', { class: 'small' }, t('settings.musicHere')) : null,
+      music ? onOff(music) : null,
       h('button', { class: 'btn-primary btn-block', onClick: close }, t('settings.done'))));
   document.addEventListener('keydown', onKey);
   document.body.append(backdrop);

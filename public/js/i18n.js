@@ -29,6 +29,8 @@ const EN = {
   'settings.narrateHere': 'Read the script aloud on this phone',
   'settings.on': 'On',
   'settings.off': 'Off',
+  'settings.music': 'Music · 音乐',
+  'settings.musicHere': 'Play background music on this phone',
 
   // Home
   'home.titleA': 'Cheese ',
@@ -270,6 +272,8 @@ const ZH = {
   'settings.narrateHere': '用这台手机朗读旁白',
   'settings.on': '开',
   'settings.off': '关',
+  'settings.music': '音乐 · Music',
+  'settings.musicHere': '用这台手机播放背景音乐',
 
   'home.titleA': '奶酪',
   'home.titleB': '大盗',

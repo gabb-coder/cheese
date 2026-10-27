@@ -3,7 +3,7 @@
 import { h, toast, calm } from '../dom.js';
 import { avatar, settingsButton } from '../components.js';
 import { t, duration } from '../i18n.js';
-import { narratesHere, testVoice } from '../narrator.js';
+import { narratesHere, musicHere, testVoice } from '../narrator.js';
 
 const MIN_PLAYERS = 4;
 const MAX_PLAYERS = 8;
@@ -174,7 +174,8 @@ export function render({ state, actions }) {
       ),
       h('div', { class: 'row' },
         h('button', { class: 'btn-secondary btn-small', onClick: () => shareLink(view.room.code) }, t('lobby.invite')),
-        settingsButton({ onLanguage: actions.setLanguage, narration: { on: narratesHere(view), set: actions.setNarration } })),
+        settingsButton({ onLanguage: actions.setLanguage, narration: { on: narratesHere(view), set: actions.setNarration },
+          music: { on: musicHere(view), set: actions.setMusic } })),
     ),
     h('div', { class: 'card' },
       h('div', { class: 'card-title' }, h('h2', { class: 'grow' }, t('lobby.mice')), h('span', { class: 'chip' }, `${count} / ${MAX_PLAYERS}`)),

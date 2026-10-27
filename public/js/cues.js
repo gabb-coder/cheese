@@ -6,6 +6,9 @@
 
 let audio = null;
 
+// The page's AudioContext once a tap has unlocked it (the music plays through it too).
+export const audioContext = () => audio;
+
 export function unlockAudio() {
   try {
     audio ??= new (window.AudioContext || window.webkitAudioContext)();
