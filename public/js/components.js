@@ -3,6 +3,7 @@
 
 import { h } from './dom.js';
 import { serverNow } from './clock.js';
+import { t, tx, joinList, LANGS, lang } from './i18n.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -19,13 +20,11 @@ function svg(tag, attrs = {}, children = []) {
 }
 
 export function nameOf(view, id) {
-  return view.players.find((p) => p.id === id)?.name ?? 'someone';
+  return view.players.find((p) => p.id === id)?.name ?? t('someone');
 }
 
 export function listNames(view, ids) {
-  const names = ids.map((id) => nameOf(view, id));
-  if (names.length <= 1) return names.join('');
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return joinList(ids.map((id) => nameOf(view, id)));
 }
 
 // An illustration from public/img.
@@ -104,52 +103,40 @@ const PIPS = {
 
 export function dieFace(n, size = 72) {
   return svg('svg', {
-    viewBox: '0 0 100 100', width: size, height: size, class: 'die', role: 'img', 'aria-label': `a die showing ${n}`,
+    viewBox: '0 0 100 100', width: size, height: size, class: 'die', role: 'img', 'aria-label': t('die.aria', { n }),
   }, [
     svg('rect', { x: 5, y: 5, width: 90, height: 90, rx: 22, fill: '#fff6e3', stroke: '#2b1d14', 'stroke-width': 6 }),
     ...(PIPS[n] ?? []).map(([cx, cy]) => svg('circle', { cx, cy, r: 9, fill: '#2b1d14' })),
   ]);
 }
 
-const ROLE_INFO = {
-  thief: {
-    art: 'role-thief',
-    title: 'You are the Cheese Thief!',
-    short: 'Cheese Thief',
-    hint: 'Take the cheese on your hour. After hour 6, choose a Follower. Win by not getting the most votes.',
-  },
-  sleepyhead: {
-    art: 'role-sleepy',
-    title: 'You are a Sleepyhead',
-    short: 'Sleepyhead',
-    hint: 'Wake on your hour and see what you can. Then find the Thief and vote them out!',
-  },
-};
+const ROLE_ART = { thief: 'role-thief', sleepyhead: 'role-sleepy' };
 
 // Press and hold to see your role and die; let go and it hides (PLAN.md §8).
 export function holdCard(me, { compact = false } = {}) {
-  const info = ROLE_INFO[me.role];
+  const role = (part) => t(`role.${me.role}.${part}`);
   const secret = compact
     ? h('div', { class: 'face secret' },
-      art(info.art, 'role-art'),
-      h('div', { class: 'grow' }, h('h3', {}, info.short), h('p', { class: 'small' }, `You wake at ${me.die} o'clock`)),
+      art(ROLE_ART[me.role], 'role-art'),
+      h('div', { class: 'grow' }, h('h3', {}, role('short')), h('p', { class: 'small' }, t('card.wakeAt', { hour: me.die }))),
       dieFace(me.die, 48))
     : h('div', { class: 'face secret' },
-      art(info.art, 'role-art'),
-      h('h2', {}, info.title),
-      h('div', { class: 'die-row' }, dieFace(me.die, 60), h('span', {}, 'You wake at', h('br'), h('strong', {}, `${me.die} o'clock`))),
-      h('p', { class: 'small' }, info.hint));
+      art(ROLE_ART[me.role], 'role-art'),
+      h('h2', {}, role('title')),
+      h('div', { class: 'die-row' }, dieFace(me.die, 60),
+        h('span', {}, t('card.wakeAtLabel'), h('br'), h('strong', {}, t('card.oclock', { hour: me.die })))),
+      h('p', { class: 'small' }, role('hint')));
   const cover = compact
-    ? h('div', { class: 'face cover' }, h('span', { class: 'badge-pill' }, '🤫 Hold to see your card'))
+    ? h('div', { class: 'face cover' }, h('span', { class: 'badge-pill' }, t('card.holdCompact')))
     : h('div', { class: 'face cover' },
       art('logo', 'logo small'),
-      h('span', { class: 'badge-pill' }, 'Press & hold to peek'),
-      h('span', { class: 'hint' }, "Make sure nobody's looking!"));
+      h('span', { class: 'badge-pill' }, t('card.hold')),
+      h('span', { class: 'hint' }, t('card.noLooking')));
   const card = h('div', {
     class: `hold-card${compact ? ' compact' : ''}`,
     tabindex: 0,
     role: 'button',
-    'aria-label': 'Press and hold to see your role and die',
+    'aria-label': t('card.aria'),
   }, h('div', { class: 'flip' }, cover, secret));
 
   const open = (e) => {
@@ -173,13 +160,13 @@ export function countdown(endsAt, label = '') {
     h('div', { class: 'bar' }, h('i')),
   );
   const left = Math.max(0, endsAt - serverNow());
-  el.querySelector('.secs').textContent = `${Math.ceil(left / 1000)}s`;
+  el.querySelector('.secs').textContent = t('unit.secShort', { n: Math.ceil(left / 1000) });
   return el;
 }
 
 // The six hours of the night, with the current one lit (public information).
 export function hourTrack(current) {
-  return h('ol', { class: 'hour-track', 'aria-label': current ? `Hour ${current} of 6` : 'Hours of the night' },
+  return h('ol', { class: 'hour-track', 'aria-label': current ? t('hours.aria', { n: current }) : t('hours.ariaAll') },
     [1, 2, 3, 4, 5, 6].map((n) => h('li', {
       class: n === current ? 'now' : current && n < current ? 'past' : '',
     }, String(n))));
@@ -191,23 +178,21 @@ export function nightNotes(view) {
   const seen = night.seen;
   const lines = [];
   const line = (ico, ...text) => lines.push(h('li', {}, h('span', { class: 'ico' }, ico), h('span', {}, ...text)));
+  const strong = (text) => h('strong', {}, String(text));
   if (seen) {
-    line('🎲', 'You rolled a ', h('strong', {}, String(me.die)), ` and woke at ${seen.hour} o'clock.`);
-    line('👀', seen.companions.length ? `Also awake: ${listNames(view, seen.companions)}.` : 'Nobody else was awake.');
-    if (me.role === 'thief') line('🧀', 'You took the cheese.');
-    else line(seen.cheeseOnTable ? '🧀' : '🍽️', seen.cheeseOnTable ? 'The cheese was still on the table.' : 'The cheese was already gone!');
-    if (seen.thiefId) line('🐭', 'You saw ', h('strong', {}, nameOf(view, seen.thiefId)), ' take the cheese!');
-    if (seen.peek) line('🔍', 'You peeked: ', h('strong', {}, nameOf(view, seen.peek.playerId)), ` rolled a ${seen.peek.die}.`);
+    line('🎲', tx('notes.rolledWoke', { die: strong(me.die), hour: seen.hour }));
+    line('👀', seen.companions.length ? t('notes.alsoAwake', { names: listNames(view, seen.companions) }) : t('notes.nobody'));
+    if (me.role === 'thief') line('🧀', t('notes.took'));
+    else line(seen.cheeseOnTable ? '🧀' : '🍽️', t(seen.cheeseOnTable ? 'notes.onTable' : 'notes.gone'));
+    if (seen.thiefId) line('🐭', tx('notes.sawThief', { name: strong(nameOf(view, seen.thiefId)) }));
+    if (seen.peek) line('🔍', tx('notes.peeked', { name: strong(nameOf(view, seen.peek.playerId)), die: seen.peek.die }));
   } else {
-    line('🎲', `You rolled a ${me.die}.`);
+    line('🎲', t('notes.rolled', { die: me.die }));
   }
-  if (follower?.chosenId) line('🤝', 'Your Follower is ', h('strong', {}, nameOf(view, follower.chosenId)), '.');
-  if (follower?.isYou) {
-    line('🤝', "You are the Thief's Follower. The Thief is ", h('strong', {}, nameOf(view, follower.thiefId)),
-      ". You win if the Thief isn't caught.");
-  }
+  if (follower?.chosenId) line('🤝', tx('notes.yourFollower', { name: strong(nameOf(view, follower.chosenId)) }));
+  if (follower?.isYou) line('🤝', tx('notes.youFollow', { name: strong(nameOf(view, follower.thiefId)) }));
   return h('div', { class: 'card notes' },
-    h('h3', {}, '📜 Your night', h('span', { class: 'muted small' }, '· only you can see this')),
+    h('h3', {}, t('notes.title'), h('span', { class: 'muted small' }, t('notes.private'))),
     h('ul', {}, lines),
   );
 }
@@ -225,7 +210,7 @@ function speakerIcon(on) {
 export function narrationButton(on, onToggle) {
   return h('button', {
     class: 'icon-btn',
-    'aria-label': on ? 'Narration on for this phone. Tap to mute.' : 'Narration off for this phone. Tap to narrate here.',
+    'aria-label': t(on ? 'narr.on' : 'narr.off'),
     'aria-pressed': on ? 'true' : 'false',
     onClick: onToggle,
   }, speakerIcon(on));
@@ -268,7 +253,7 @@ export function peekingMouse(className = '', { wall = true } = {}) {
     scene.push(svg('rect', { x: 0, y: 126, width: 200, height: 24, rx: 4, fill: '#a8774f', stroke: ink, 'stroke-width': 3 }));
   }
   return svg('svg', {
-    viewBox: wall ? '0 0 200 150' : '52 50 96 79', class: `art peeker ${className}`, role: 'img', 'aria-label': 'A mouse peeking out of a mouse hole',
+    viewBox: wall ? '0 0 200 150' : '52 50 96 79', class: `art peeker ${className}`, role: 'img', 'aria-label': t('art.peeker'),
   }, scene);
 }
 
@@ -276,7 +261,7 @@ export function peekingMouse(className = '', { wall = true } = {}) {
 export function sunrise(className = '') {
   const ink = '#2b1d14';
   const line = { fill: 'none', stroke: ink, 'stroke-width': 3.5, 'stroke-linecap': 'round' };
-  return svg('svg', { viewBox: '0 0 160 120', class: `art sunrise ${className}`, role: 'img', 'aria-label': 'The sun rising over a hill' }, [
+  return svg('svg', { viewBox: '0 0 160 120', class: `art sunrise ${className}`, role: 'img', 'aria-label': t('art.sunrise') }, [
     svg('g', { class: 'sun-body' }, [
       svg('g', { class: 'rays', stroke: '#e59a12', 'stroke-width': 6, 'stroke-linecap': 'round' }, [
         svg('path', { d: 'M80 10 v14' }), svg('path', { d: 'M30 30 l10 10' }), svg('path', { d: 'M130 30 l-10 10' }),
@@ -288,4 +273,46 @@ export function sunrise(className = '') {
     ]),
     svg('path', { d: 'M0 120 V100 Q40 82 80 96 Q120 110 160 92 V120 Z', fill: '#8fbf86', stroke: ink, 'stroke-width': 4, 'stroke-linejoin': 'round' }),
   ]);
+}
+
+// Settings: a gear button that opens a sheet where this phone picks its language.
+function gearIcon() {
+  const teeth = [0, 45, 90, 135, 180, 225, 270, 315].map((deg) => svg('rect', {
+    x: 10.25, y: 1.5, width: 3.5, height: 5, rx: 1, fill: 'currentColor', transform: `rotate(${deg} 12 12)`,
+  }));
+  return svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }, [
+    ...teeth,
+    svg('circle', { cx: 12, cy: 12, r: 6.2, fill: 'none', stroke: 'currentColor', 'stroke-width': 3.2 }),
+  ]);
+}
+
+export function settingsButton(onLanguage) {
+  return h('button', { class: 'icon-btn', 'aria-label': t('settings.open'), onClick: () => openSettings(onLanguage) }, gearIcon());
+}
+
+function openSettings(onLanguage) {
+  document.querySelector('.sheet-backdrop')?.remove();
+  const close = () => {
+    backdrop.remove();
+    document.removeEventListener('keydown', onKey);
+  };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const options = LANGS.map((l) => h('button', {
+    class: 'lang-option',
+    lang: l.speech,
+    'aria-pressed': String(l.code === lang()),
+    onClick: () => {
+      close();
+      if (l.code !== lang()) onLanguage(l.code);
+    },
+  }, l.label));
+  const backdrop = h('div', { class: 'sheet-backdrop', onClick: (e) => { if (e.target === backdrop) close(); } },
+    h('div', { class: 'card sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('settings.title') },
+      h('h2', {}, t('settings.title')),
+      h('div', { class: 'label' }, t('settings.language')),
+      h('div', { class: 'lang-options' }, options),
+      h('button', { class: 'btn-secondary btn-block', onClick: close }, t('settings.done'))));
+  document.addEventListener('keydown', onKey);
+  document.body.append(backdrop);
+  options.find((o) => o.getAttribute('aria-pressed') === 'true')?.focus();
 }

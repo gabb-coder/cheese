@@ -3,8 +3,7 @@
 // host's (if the host setting is on), and anyone can switch their own phone on or off.
 
 import { prefs } from './storage.js';
-
-const WORDS = ['', 'one', 'two', 'three', 'four', 'five', 'six'];
+import { t, speechLang } from './i18n.js';
 
 export function stepKey(view) {
   return view ? `${view.phase.name}:${view.phase.hour ?? ''}` : '';
@@ -14,29 +13,19 @@ export function stepKey(view) {
 // leak anything.
 export function lineFor(view) {
   const { name, hour } = view.phase;
+  const nameOf = (id) => view.players.find((p) => p.id === id)?.name ?? t('someone');
   switch (name) {
-    case 'ROLE_REVEAL':
-      return 'Welcome to Cheese Thief. Press and hold your card to see your role and your number.';
-    case 'NIGHT_INTRO':
-      return 'Night falls on the mouse house. Everyone, close your eyes.';
-    case 'HOUR':
-      return `${hour > 1 ? 'Close your eyes. ' : ''}It's ${WORDS[hour]} o'clock. If you rolled a ${hour}, open your eyes.`;
-    case 'FOLLOWER_CHOICE':
-      return 'Close your eyes. Cheese Thief, open your eyes and choose your Follower.';
-    case 'FOLLOWER_MEET':
-      return 'Follower, open your eyes. Thief and Follower, look at your phones and see each other.';
-    case 'DAWN':
-      return 'Everyone, close your eyes. … Good morning! Everyone, wake up. The cheese is gone!';
-    case 'DISCUSSION':
-      return 'Time to talk. When did you wake up, and what did you see? Find the Thief!';
-    case 'VOTE':
-      return 'Time to vote. Who is the Cheese Thief?';
+    case 'ROLE_REVEAL': return t('say.reveal');
+    case 'NIGHT_INTRO': return t('say.nightIntro');
+    case 'HOUR': return t('say.hour', { hour });
+    case 'FOLLOWER_CHOICE': return t('say.followerChoice');
+    case 'FOLLOWER_MEET': return t('say.followerMeet');
+    case 'DAWN': return t('say.dawn');
+    case 'DISCUSSION': return t('say.discussion');
+    case 'VOTE': return t('say.vote');
     case 'RESULTS': {
       const r = view.results;
-      const nameOf = (id) => view.players.find((p) => p.id === id)?.name ?? 'someone';
-      return r.thiefCaught
-        ? `The votes are in. ${nameOf(r.thiefId)} was the Cheese Thief, and got caught! The Sleepyheads win!`
-        : `The votes are in. The Cheese Thief was ${nameOf(r.thiefId)}, and got away! ${nameOf(r.thiefId)} and the Follower, ${nameOf(r.followerId)}, win!`;
+      return t(r.thiefCaught ? 'say.caught' : 'say.away', { thief: nameOf(r.thiefId), follower: nameOf(r.followerId) });
     }
     default:
       return '';
@@ -59,15 +48,18 @@ export function toggleNarration(view) {
 }
 
 const synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
-let voice = null;
+synth?.getVoices(); // some browsers only start loading voices when first asked
 
-function pickVoice() {
+// The nicest voice for this phone's language: English prefers a US/UK voice, Mandarin a
+// mainland one (zh-CN), then any voice in the language.
+function pickVoice(language) {
   const voices = synth?.getVoices() ?? [];
-  voice = voices.find((v) => /en[-_](GB|US)/i.test(v.lang) && /natural|enhanced|premium|google/i.test(v.name))
-    ?? voices.find((v) => /^en/i.test(v.lang)) ?? null;
+  const base = language.slice(0, 2);
+  const exact = language === 'en-US' ? /en[-_](GB|US)/i : new RegExp(language.replace('-', '[-_]'), 'i');
+  return voices.find((v) => exact.test(v.lang) && /natural|enhanced|premium|google/i.test(v.name))
+    ?? voices.find((v) => exact.test(v.lang))
+    ?? voices.find((v) => v.lang.toLowerCase().startsWith(base)) ?? null;
 }
-synth?.addEventListener?.('voiceschanged', pickVoice);
-pickVoice();
 
 export const canSpeak = Boolean(synth);
 
@@ -75,8 +67,10 @@ export function speak(text) {
   if (!synth || !text) return;
   synth.cancel();
   const u = new SpeechSynthesisUtterance(text);
+  const language = speechLang();
+  const voice = pickVoice(language);
   if (voice) u.voice = voice;
-  u.lang = voice?.lang ?? 'en-US';
+  u.lang = voice?.lang ?? language;
   u.rate = 0.95;
   u.pitch = 1.05;
   synth.speak(u);

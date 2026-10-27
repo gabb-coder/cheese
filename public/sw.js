@@ -34,6 +34,7 @@ const SHELL = [
   '/js/components.js',
   '/js/cues.js',
   '/js/dom.js',
+  '/js/i18n.js',
   '/js/main.js',
   '/js/narrator.js',
   '/js/net.js',
