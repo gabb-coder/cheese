@@ -7,9 +7,9 @@ A private, mobile-first web version of the social deduction game *Cheese Thief*
 - Plan: [PLAN.md](PLAN.md)
 
 ## Status
-Milestone 4 of 6: the whole game is playable: lobby, role reveal, the night (narration,
-timers, per-player views), discussion, the secret vote, results and "play again".
-Still to come: reconnect and cold-start polish (5), and the Render deployment files (6).
+Milestone 5 of 6: the whole game is playable and robust to refreshes, dropped
+connections, sleeping phones, host disconnects, server restarts and cold starts.
+Still to come: the Render deployment files (6).
 
 ## Run it locally
 Requires Node 20 or newer.
@@ -31,8 +31,19 @@ Environment variables: `PORT` (default 3000), `ENABLE_BOTS=false` to hide bots,
 `LOG_LEVEL=debug` for room logs, `TIME_SCALE=0.2` (debugging only) to run every timer
 five times faster.
 
+Players can add the game to their home screen (it has a web manifest and icons); on
+https (or localhost) a service worker caches the app so it opens instantly.
+
 ## Run the tests
 
 ```sh
 npm test
+```
+
+Optional browser checks (reload mid-night, server crash and restart, host drop, cold start
+from the cached app). They need Playwright with Chromium:
+
+```sh
+npm i --no-save playwright && npx playwright install chromium
+npm run test:e2e
 ```

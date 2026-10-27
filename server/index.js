@@ -128,6 +128,8 @@ export function createServer({
 function handleMessage(rooms, conn, msg, log) {
   switch (msg.t) {
     case 'ping':
+      // A phone with the game open counts as activity, so its room doesn't expire.
+      conn.room?.touch();
       return conn.send({ t: 'pong', serverNow: Date.now() });
 
     case 'hello': {

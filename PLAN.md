@@ -249,17 +249,20 @@ just `viewFor`.
   from sleep.
 - **Disconnects** never pause the game (D6). The player list shows a 💤/📵 "offline"
   badge in public, because the table can see that anyway.
-- **Host migration:** if the host is offline for more than 20 s, host moves to the
-  longest-seated connected human. If no humans are connected, the room just idles until
-  it expires.
+- **Host migration:** if the host is offline for more than 20 s (any phase), host moves
+  to the longest-seated connected human; a host who taps Leave mid-game hands over at
+  once. If no humans are connected, the host stays and the room idles until it expires;
+  the first player back takes over after the grace period. During the night the change
+  is announced at the next step.
 - **Lobby rules:** late joiners get `GAME_IN_PROGRESS` (seat reclaim by token still
   works). Names are 1-16 characters, trimmed, compared case-insensitively for
   duplicates (`NAME_TAKEN`), and always rendered with `textContent` (no HTML injection).
   The host can kick players in the lobby; a kicked seat's token is revoked. The room is
   capped at 8 players.
-- **Expiry:** each room keeps `lastActivity`, updated on any intent. A sweep every
-  60 s deletes rooms idle for more than 30 minutes, sending `roomClosed {expired}` to
-  any open sockets first.
+- **Expiry:** each room keeps `lastActivity`, updated on any intent and on the app
+  pings from phones that have the room open. A sweep every 60 s deletes rooms idle for
+  more than 30 minutes, sending `roomClosed {expired}` to any open sockets first. So a
+  room expires about 30 minutes after the last phone closed or went to sleep.
 - **Cold start (Render free tier):** the client shows "Waking up the mouse hole…" while
   the socket connects and keeps retrying. The first ever page load is served by the
   same sleeping service, so on that first load the browser spinner shows until the

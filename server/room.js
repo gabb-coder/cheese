@@ -33,6 +33,9 @@ export const FIXED_SECONDS = Object.freeze({
   [PHASE.DAWN]: 6,
 });
 
+// PLAN.md §7: if the host is offline this long, another connected player becomes host.
+export const HOST_GRACE_SEC = 20;
+
 // PLAN.md D1: the steal is forced this long before the Thief's hour ends (at most 40% of
 // the hour), so the others awake still see it happen.
 const STEAL_DEADLINE_LEAD_SEC = 5;
@@ -86,6 +89,7 @@ export class Room {
     this.phaseTimer = null;
     this.stealTimer = null;
     this.endsAt = null;
+    this.hostTimer = null;
   }
 
   get phase() {
@@ -156,6 +160,7 @@ export class Room {
     seat.conn = conn;
     conn.room = this;
     conn.seatId = seat.id;
+    if (seat.id === this.hostId) this.cancelHostHandover();
     conn.send({ t: 'welcome', room: this.code, playerId: seat.id, token: seat.token });
     this.sendView(seat.id);
     this.publicChange(seat.id);
@@ -168,6 +173,7 @@ export class Room {
     conn.seatId = null;
     if (!seat || seat.conn !== conn) return;
     seat.conn = null;
+    if (seat.id === this.hostId) this.scheduleHostHandover();
     this.publicChange();
   }
 
@@ -189,10 +195,32 @@ export class Room {
   }
 
   // Host goes to the longest-seated human, preferring one who is connected.
-  migrateHost() {
-    const candidates = this.humans().sort((a, b) =>
-      (b.conn ? 1 : 0) - (a.conn ? 1 : 0) || a.joinedAt - b.joinedAt);
-    this.hostId = candidates[0]?.id ?? null;
+  // With `connectedOnly`, nothing changes unless someone connected can take over.
+  migrateHost({ connectedOnly = false } = {}) {
+    const candidates = this.humans()
+      .filter((s) => s.id !== this.hostId || !connectedOnly)
+      .filter((s) => s.conn || !connectedOnly)
+      .sort((a, b) => (b.conn ? 1 : 0) - (a.conn ? 1 : 0) || a.joinedAt - b.joinedAt);
+    if (candidates.length) this.hostId = candidates[0].id;
+    else if (!connectedOnly) this.hostId = null;
+  }
+
+  // The host's phone dropped: give them a grace period to come back, then hand over.
+  scheduleHostHandover() {
+    if (this.hostTimer || this.closed) return;
+    this.hostTimer = this.timers.setTimeout(() => {
+      this.hostTimer = null;
+      if (this.seats.get(this.hostId)?.conn) return;
+      const before = this.hostId;
+      this.migrateHost({ connectedOnly: true });
+      if (this.hostId !== before) this.publicChange();
+      else this.scheduleHostHandover(); // nobody connected yet: check again later
+    }, HOST_GRACE_SEC * 1000 * this.timeScale);
+  }
+
+  cancelHostHandover() {
+    if (this.hostTimer) this.timers.clearTimeout(this.hostTimer);
+    this.hostTimer = null;
   }
 
   addBot() {
@@ -208,6 +236,7 @@ export class Room {
     this.closed = true;
     if (this.botTimer) this.timers.clearTimeout(this.botTimer);
     this.clearClock();
+    this.cancelHostHandover();
     for (const seat of this.seats.values()) {
       if (!seat.conn) continue;
       const conn = seat.conn;
@@ -244,8 +273,16 @@ export class Room {
           conn?.send({ t: 'left' });
         } else {
           // Mid-game the seat must stay in the game; the player just goes away.
+          // A host who leaves on purpose hands over straight away.
           const conn = seat.conn;
           if (conn) this.detach(conn);
+          if (isHost) {
+            this.cancelHostHandover();
+            const before = this.hostId;
+            this.migrateHost({ connectedOnly: true });
+            if (this.hostId !== before) this.publicChange();
+            else this.scheduleHostHandover();
+          }
           conn?.send({ t: 'left' });
         }
         return null;

@@ -69,13 +69,15 @@ function vote({ state, actions }) {
           confirmBtn.disabled = false;
           confirmBtn.textContent = `Vote for ${p.name}`;
         },
-      }, p.name);
+      }, p.name, p.connected ? '' : ' 📵');
       return btn;
     });
     confirmBtn.addEventListener('click', () => {
       if (picked) actions.send({ t: 'vote', playerId: picked });
     });
-    body = [h('div', { class: 'picker' }, buttons), confirmBtn];
+    const offline = view.players.some((p) => !p.connected);
+    body = [h('div', { class: 'picker' }, buttons), confirmBtn,
+      offline ? h('p', { class: 'muted small hero' }, '📵 = phone offline right now') : null];
   }
 
   return h('section', { class: 'screen-inner' },

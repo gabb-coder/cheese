@@ -251,6 +251,16 @@ describe('expiry and restarts', () => {
     assert.ok(srv.rooms.get(code));
   });
 
+  it('pings from a phone with the room open count as activity', async () => {
+    const { host, code } = await lobbyOf(2);
+    const room = srv.rooms.get(code);
+    room.lastActivity -= 31 * 60 * 1000;
+    host.send({ t: 'ping' });
+    await host.waitFor('pong');
+    srv.rooms.sweep();
+    assert.ok(srv.rooms.get(code));
+  });
+
   it('a server shutdown tells everyone the room is gone', async () => {
     const { host } = await lobbyOf(2);
     const closing = host.waitFor('roomClosed');

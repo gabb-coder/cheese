@@ -38,6 +38,7 @@ const state = {
   homeError: '',
   pendingHello: false,
   attempts: 0,
+  freshConnection: false, // the next view is the catch-up after (re)connecting
 };
 
 // ---------------------------------------------------------------------------
@@ -66,6 +67,9 @@ const actions = {
     unlockSpeech();
     unlockAudio();
     render();
+  },
+  reconnect() {
+    conn.reconnectNow();
   },
   dismissNotice() {
     const key = state.notice;
@@ -106,6 +110,7 @@ conn.addEventListener('status', ({ detail }) => {
   state.status = detail;
   if (detail === 'open') {
     state.attempts = 0;
+    state.freshConnection = true;
     hello();
   } else if (detail === 'connecting') {
     state.attempts += 1;
@@ -121,7 +126,13 @@ conn.addEventListener('message', ({ detail: msg }) => {
       return;
     case 'view':
       syncServerTime(msg.serverNow);
-      onStep(state.view, msg);
+      // The catch-up view after reconnecting shouldn't replay narration for a step that
+      // may have started long ago.
+      onStep(state.freshConnection ? null : state.view, msg);
+      if (state.view && !state.freshConnection && msg.room.hostId === msg.me.id && state.view.room.hostId !== msg.me.id) {
+        toast("You're the host now 👑");
+      }
+      state.freshConnection = false;
       state.view = msg;
       state.pendingHello = false;
       break;
@@ -221,3 +232,9 @@ function render() {
 render();
 startCountdowns();
 conn.connect();
+
+// Cache the app shell so a returning player sees the "waking up" screen at once, even
+// while a sleeping server is still starting (needs https or localhost).
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}

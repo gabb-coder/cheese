@@ -5,6 +5,7 @@ const BACKOFF_MS = [500, 1000, 2000, 4000, 8000];
 const BACKOFF_CAP_MS = 10000;
 const PING_EVERY_MS = 20000;
 const PONG_TIMEOUT_MS = 10000;
+const PROBE_TIMEOUT_MS = 4000;
 
 export function socketUrl(loc = location) {
   return `${loc.protocol === 'https:' ? 'wss:' : 'ws:'}//${loc.host}/ws`;
@@ -21,11 +22,15 @@ export class Connection extends EventTarget {
     this.pingTimer = null;
     this.pongTimer = null;
 
+    // Phone woke up / tab came back / network returned: a socket that looks open may have
+    // died while the phone slept, so check it quickly instead of waiting for the next ping.
     const wake = () => {
-      if (document.visibilityState === 'visible' && this.status !== 'open') this.reconnectNow();
+      if (document.visibilityState !== 'visible') return;
+      if (this.status === 'open') this.probe();
+      else this.reconnectNow();
     };
     document.addEventListener('visibilitychange', wake);
-    window.addEventListener('online', wake);
+    window.addEventListener('online', () => this.reconnectNow());
     window.addEventListener('pageshow', wake);
   }
 
@@ -75,6 +80,7 @@ export class Connection extends EventTarget {
   reconnectNow() {
     this.attempt = 0;
     if (this.ws && this.ws.readyState === WebSocket.CONNECTING) return;
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
     if (this.ws) {
       const old = this.ws;
       this.ws = null;
@@ -100,6 +106,12 @@ export class Connection extends EventTarget {
       clearTimeout(this.pongTimer);
       this.pongTimer = setTimeout(() => this.ws?.close(), PONG_TIMEOUT_MS);
     }, PING_EVERY_MS);
+  }
+
+  probe() {
+    if (!this.send({ t: 'ping' })) return;
+    clearTimeout(this.pongTimer);
+    this.pongTimer = setTimeout(() => this.ws?.close(), PROBE_TIMEOUT_MS);
   }
 
   stopPings() {

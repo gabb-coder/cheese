@@ -395,3 +395,95 @@ describe('day and replay', () => {
     assert.equal(late.last.me.id, late.seatId);
   });
 });
+
+describe('host disconnects (PLAN.md §7)', () => {
+  const tokenOf = (conn) => conn.sent.find((m) => m.t === 'welcome').token;
+
+  it('host who drops in the lobby is replaced after 20 s by the longest-seated connected player', () => {
+    const env = setup({ humans: 4 });
+    const [host, p2, p3] = env.conns;
+    const hostId = host.seatId;
+    env.room.detach(p2); // p2 is offline too, so p3 should take over
+    env.room.detach(host);
+    env.clock.tick(19_999);
+    assert.equal(env.room.hostId, hostId);
+    env.clock.tick(1);
+    assert.equal(env.room.hostId, p3.seatId);
+    assert.equal(p3.last.room.hostId, p3.seatId, 'everyone is told');
+    env.verify();
+  });
+
+  it('a host who comes back within 20 s stays host', () => {
+    const env = setup({ humans: 4 });
+    const hostId = env.host.seatId;
+    const token = tokenOf(env.host);
+    env.room.detach(env.host);
+    env.clock.tick(10_000);
+    env.room.reclaim(fakeConn('host again'), token);
+    env.clock.tick(30_000);
+    assert.equal(env.room.hostId, hostId);
+  });
+
+  it('works mid-game; during the night the change waits for the next step', () => {
+    const env = setup({ humans: 5 });
+    start(env);
+    for (const c of env.conns) env.room.handle(c, { t: 'revealed' });
+    env.clock.tick(8_000 + 1_000); // hour 1
+    const [host, p2] = env.conns;
+    const hostId = host.seatId;
+    env.room.detach(host);
+    for (const c of env.conns) c.take();
+    env.clock.tick(13_000); // grace not over yet; still hour 1
+    env.clock.tick(1_000); // hour 2 starts (t = 15 s) ...
+    env.clock.tick(6_000); // ... and the grace period ends (t = 20 s) during hour 2
+    assert.equal(env.room.hostId, p2.seatId);
+    assert.equal(p2.last.room.hostId, hostId, 'not announced during the hour');
+    env.clock.tick(9_000); // hour 3
+    assert.equal(p2.last.room.hostId, p2.seatId, 'announced at the next step');
+    env.verify();
+  });
+
+  it('the new host can end the discussion and start another round', () => {
+    const env = setup({ humans: 4 });
+    start(env);
+    const [host, p2] = env.conns;
+    env.room.detach(host);
+    let guard = 0;
+    while (env.room.phase !== PHASE.DISCUSSION && guard++ < 1000) env.clock.tick(1_000);
+    env.room.handle(p2, { t: 'endDiscussion' });
+    assert.equal(env.room.phase, PHASE.VOTE);
+    env.clock.tick(45_000);
+    env.room.handle(p2, { t: 'playAgain' });
+    assert.equal(env.room.phase, 'LOBBY');
+  });
+
+  it('a host who leaves on purpose mid-game hands over at once', () => {
+    const env = setup({ humans: 4 });
+    start(env);
+    const hostId = env.host.seatId;
+    env.room.handle(env.host, { t: 'leave' });
+    assert.equal(env.host.last.t, 'left');
+    assert.equal(env.room.hostId, env.conns[1].seatId);
+    assert.ok(env.room.seats.has(hostId), 'their seat stays in the game');
+  });
+
+  it('with nobody connected the host stays, and the first to return can take over', () => {
+    const env = setup({ humans: 4 });
+    const hostId = env.host.seatId;
+    const p3token = tokenOf(env.conns[2]);
+    for (const c of env.conns) env.room.detach(c);
+    env.clock.tick(60_000);
+    assert.equal(env.room.hostId, hostId);
+    const back = fakeConn('p3 back');
+    env.room.reclaim(back, p3token);
+    env.clock.tick(20_000);
+    assert.equal(env.room.hostId, back.seatId);
+  });
+
+  it('closing the room cancels a pending hand-over', () => {
+    const env = setup({ humans: 4 });
+    env.room.detach(env.host);
+    env.room.close('expired');
+    assert.equal(env.clock.timers.size, 0);
+  });
+});
