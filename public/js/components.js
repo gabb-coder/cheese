@@ -4,6 +4,7 @@
 import { h } from './dom.js';
 import { serverNow } from './clock.js';
 import { t, tx, joinList, LANGS, lang } from './i18n.js';
+import { testVoice } from './narrator.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -286,33 +287,49 @@ function gearIcon() {
   ]);
 }
 
-export function settingsButton(onLanguage) {
-  return h('button', { class: 'icon-btn', 'aria-label': t('settings.open'), onClick: () => openSettings(onLanguage) }, gearIcon());
+// `narration` is { on, set(on) } when in a room, so this phone can turn the narrator on or off.
+export function settingsButton({ onLanguage, narration = null }) {
+  return h('button', { class: 'icon-btn', 'aria-label': t('settings.open'), onClick: () => openSettings(onLanguage, narration) }, gearIcon());
 }
 
-function openSettings(onLanguage) {
+function choices(items, isOn, onPick) {
+  const buttons = items.map(([value, label, attrs = {}]) => h('button', {
+    class: 'choice', 'aria-pressed': String(isOn(value)), ...attrs,
+    onClick: () => {
+      onPick(value);
+      for (const [i, b] of buttons.entries()) b.setAttribute('aria-pressed', String(isOn(items[i][0])));
+    },
+  }, label));
+  return h('div', { class: 'choices' }, buttons);
+}
+
+function openSettings(onLanguage, narration) {
   document.querySelector('.sheet-backdrop')?.remove();
   const close = () => {
     backdrop.remove();
     document.removeEventListener('keydown', onKey);
   };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
-  const options = LANGS.map((l) => h('button', {
-    class: 'lang-option',
-    lang: l.speech,
-    'aria-pressed': String(l.code === lang()),
-    onClick: () => {
-      close();
-      if (l.code !== lang()) onLanguage(l.code);
-    },
-  }, l.label));
+  const languages = choices(LANGS.map((l) => [l.code, l.label, { lang: l.speech }]), (code) => code === lang(), (code) => {
+    if (code === lang()) return;
+    close();
+    onLanguage(code);
+  });
+  let narrating = narration?.on;
   const backdrop = h('div', { class: 'sheet-backdrop', onClick: (e) => { if (e.target === backdrop) close(); } },
     h('div', { class: 'card sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('settings.title') },
       h('h2', {}, t('settings.title')),
       h('div', { class: 'label' }, t('settings.language')),
-      h('div', { class: 'lang-options' }, options),
-      h('button', { class: 'btn-secondary btn-block', onClick: close }, t('settings.done'))));
+      languages,
+      h('div', { class: 'label' }, t('settings.narrator')),
+      narration ? h('p', { class: 'small' }, t('settings.narrateHere')) : null,
+      narration ? choices([[true, t('settings.on')], [false, t('settings.off')]], (v) => v === narrating, (v) => {
+        narrating = v;
+        narration.set(v);
+      }) : null,
+      h('button', { class: 'btn-secondary btn-small', onClick: () => testVoice() }, t('narr.test')),
+      h('button', { class: 'btn-primary btn-block', onClick: close }, t('settings.done'))));
   document.addEventListener('keydown', onKey);
   document.body.append(backdrop);
-  options.find((o) => o.getAttribute('aria-pressed') === 'true')?.focus();
+  languages.querySelector('[aria-pressed="true"]')?.focus();
 }

@@ -25,6 +25,10 @@ const EN = {
   'settings.title': 'Settings',
   'settings.language': 'Language · 语言',
   'settings.done': 'Done',
+  'settings.narrator': 'Narrator · 旁白',
+  'settings.narrateHere': 'Read the script aloud on this phone',
+  'settings.on': 'On',
+  'settings.off': 'Off',
 
   // Home
   'home.titleA': 'Cheese ',
@@ -103,6 +107,13 @@ const EN = {
   'game.room': 'ROOM {code}',
   'narr.on': 'Narration on for this phone. Tap to mute.',
   'narr.off': 'Narration off for this phone. Tap to narrate here.',
+  'narr.test': '▶  Test the voice',
+  'narr.tapToHear': '🔊 Tap the screen to hear the narrator',
+  'narr.noVoice': "This browser can't speak. Try Safari on iPhone or Chrome on Android.",
+  'narr.cantHear': "The voice didn't start. Turn off silent mode, turn the volume up and try again.",
+  'lobby.narratorHere': '🔊 This phone is the narrator. Turn the volume up and silent mode off.',
+  'lobby.narratorThere': "🔊 {name}'s phone is the narrator.",
+  'lobby.narratorOff': '🔇 Captions only. To hear the script, turn on the narrator in ⚙️ settings.',
 
   // Role card
   'role.thief.title': 'You are the Cheese Thief!',
@@ -229,6 +240,7 @@ const EN = {
   'results.waitAgain': 'Waiting for {name} to start another round',
 
   // Narration (one line per step, the same for everyone)
+  'say.test': "Hello! I'm the narrator. If you can hear me, you're all set.",
   'say.reveal': 'Welcome to Cheese Thief. Press and hold your card to see your role and your number.',
   'say.nightIntro': 'Night falls on the mouse house. Everyone, close your eyes.',
   'say.hour': ({ hour }) => `${hour > 1 ? 'Close your eyes. ' : ''}It's ${['', 'one', 'two', 'three', 'four', 'five', 'six'][hour]} o'clock. If you rolled a ${hour}, open your eyes.`,
@@ -254,6 +266,10 @@ const ZH = {
   'settings.title': '设置',
   'settings.language': '语言 · Language',
   'settings.done': '完成',
+  'settings.narrator': '旁白 · Narrator',
+  'settings.narrateHere': '用这台手机朗读旁白',
+  'settings.on': '开',
+  'settings.off': '关',
 
   'home.titleA': '奶酪',
   'home.titleB': '大盗',
@@ -326,6 +342,13 @@ const ZH = {
   'game.room': '房间 {code}',
   'narr.on': '这台手机的旁白已开启。点按静音。',
   'narr.off': '这台手机的旁白已关闭。点按开启。',
+  'narr.test': '▶  试听旁白',
+  'narr.tapToHear': '🔊 点一下屏幕即可听到旁白',
+  'narr.noVoice': '这个浏览器不支持朗读。iPhone 请用 Safari，安卓请用 Chrome。',
+  'narr.cantHear': '语音没有播放。请关闭静音模式、调高音量后再试一次。',
+  'lobby.narratorHere': '🔊 这台手机是旁白。请调高音量并关闭静音模式。',
+  'lobby.narratorThere': '🔊 {name} 的手机是旁白。',
+  'lobby.narratorOff': '🔇 只有字幕。想听旁白，请在 ⚙️ 设置里开启旁白。',
 
   'role.thief.title': '你是奶酪大盗！',
   'role.thief.short': '奶酪大盗',
@@ -445,6 +468,7 @@ const ZH = {
   'results.again': '🔁  再玩一局',
   'results.waitAgain': '等待 {name} 开始下一局',
 
+  'say.test': '你好！我是旁白。如果你能听到我的声音，就一切就绪了。',
   'say.reveal': '欢迎来到奶酪大盗。按住你的卡牌，查看你的身份和点数。',
   'say.nightIntro': '夜幕降临老鼠窝。大家请闭上眼睛。',
   'say.hour': ({ hour }) => `${hour > 1 ? '请闭上眼睛。' : ''}现在是${['', '一', '两', '三', '四', '五', '六'][hour]}点。掷出${hour}点的玩家，请睁开眼睛。`,

@@ -56,5 +56,5 @@ export function update(ctx) {
     screen.update?.(ctx);
   }
   narrBtnSlot.replaceChildren(narrationButton(narratesHere(view), () => ctx.actions.toggleNarration()),
-    settingsButton(ctx.actions.setLanguage));
+    settingsButton({ onLanguage: ctx.actions.setLanguage, narration: { on: narratesHere(view), set: ctx.actions.setNarration } }));
 }

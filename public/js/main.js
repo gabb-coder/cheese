@@ -71,6 +71,12 @@ const actions = {
   reconnect() {
     conn.reconnectNow();
   },
+  setNarration(on) {
+    prefs.narration = on ? 'on' : 'off';
+    unlockSpeech();
+    unlockAudio();
+    render();
+  },
   setLanguage(code) {
     setLang(code);
     // Redraw everything in the new language.

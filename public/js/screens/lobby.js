@@ -3,6 +3,7 @@
 import { h, toast, calm } from '../dom.js';
 import { avatar, settingsButton } from '../components.js';
 import { t, duration } from '../i18n.js';
+import { narratesHere, testVoice } from '../narrator.js';
 
 const MIN_PLAYERS = 4;
 const MAX_PLAYERS = 8;
@@ -54,6 +55,17 @@ function settingsCard(view, isHost, actions) {
   // The lobby re-renders on every change; keep the panel open if the host opened it.
   details.addEventListener('toggle', () => { settingsOpen = details.open; });
   return details;
+}
+
+// Which phone reads the script aloud, with a button to check this phone can be heard.
+function narratorCard(view) {
+  const host = view.players.find((p) => p.id === view.room.hostId);
+  if (narratesHere(view)) {
+    return h('div', { class: 'card narrator-card' }, h('p', {}, t('lobby.narratorHere')),
+      h('button', { class: 'btn-secondary btn-small', onClick: () => testVoice() }, t('narr.test')));
+  }
+  return h('div', { class: 'card narrator-card' },
+    h('p', { class: 'muted' }, view.room.settings.narratorOnHost && host && host.id !== view.me.id ? t('lobby.narratorThere', { name: host.name }) : t('lobby.narratorOff')));
 }
 
 // The room code flips into place like a departure board the first time it's shown.
@@ -162,12 +174,13 @@ export function render({ state, actions }) {
       ),
       h('div', { class: 'row' },
         h('button', { class: 'btn-secondary btn-small', onClick: () => shareLink(view.room.code) }, t('lobby.invite')),
-        settingsButton(actions.setLanguage)),
+        settingsButton({ onLanguage: actions.setLanguage, narration: { on: narratesHere(view), set: actions.setNarration } })),
     ),
     h('div', { class: 'card' },
       h('div', { class: 'card-title' }, h('h2', { class: 'grow' }, t('lobby.mice')), h('span', { class: 'chip' }, `${count} / ${MAX_PLAYERS}`)),
       h('ul', { class: 'seats' }, players.map(seat), leavers.map(ghost), empty),
     ),
+    narratorCard(view),
     settingsCard(view, isHost, actions),
     actionsBar,
   );
