@@ -2,7 +2,7 @@
 // something this player can see has changed (so a held card or an open picker isn't
 // reset just because someone else reconnected).
 
-import { h } from '../dom.js';
+import { h, swap } from '../dom.js';
 import { narrationButton } from '../components.js';
 import { narratesHere, lineFor } from '../narrator.js';
 import * as reveal from './reveal.js';
@@ -18,6 +18,7 @@ function screenFor(view) {
 }
 
 let lastKey = null;
+let lastStep = null;
 let body = null;
 let current = null;
 let narrBtnSlot = null;
@@ -25,6 +26,7 @@ let caption = null;
 
 export function render(ctx) {
   lastKey = null;
+  lastStep = null;
   narrBtnSlot = h('div', { class: 'topbar-right' });
   caption = h('p', { class: 'caption', 'aria-live': 'polite' });
   body = h('div', { class: 'game-body' });
@@ -42,7 +44,10 @@ export function update(ctx) {
   const screen = screenFor(view);
   const key = `${view.phase.name}|${screen.key(view)}`;
   if (key !== lastKey || screen !== current) {
-    body.replaceChildren(screen.render(ctx));
+    // A new step of the game slides in; smaller changes within a step just redraw.
+    const step = `${view.phase.name}|${view.phase.hour ?? ''}`;
+    swap(body, screen.render(ctx), lastStep !== null && step !== lastStep);
+    lastStep = step;
     lastKey = key;
     current = screen;
     caption.textContent = lineFor(view);

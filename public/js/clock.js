@@ -18,6 +18,8 @@ export function startCountdowns() {
       const left = Math.max(0, endsAt - serverNow());
       el.querySelector('.secs').textContent = `${Math.ceil(left / 1000)}s`;
       el.querySelector('.bar > i').style.width = `${Math.min(100, (left / total) * 100)}%`;
+      // The last five seconds pulse, except on the short fixed steps that are nearly all "last".
+      el.classList.toggle('urgent', left > 0 && left <= 5000 && total > 8000);
     }
   }, 200);
 }

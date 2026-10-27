@@ -24,7 +24,6 @@ const SHELL = [
   '/img/icon-512.png',
   '/img/logo.svg',
   '/img/moon.svg',
-  '/img/mousehole.svg',
   '/img/pair.svg',
   '/img/plate.svg',
   '/img/role-sleepy.svg',

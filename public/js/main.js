@@ -4,7 +4,7 @@
 
 import { Connection } from './net.js';
 import { session, prefs } from './storage.js';
-import { h, toast } from './dom.js';
+import { h, toast, swap } from './dom.js';
 import { syncServerTime, startCountdowns } from './clock.js';
 import { stepKey, lineFor, narratesHere, toggleNarration, speak, unlockSpeech } from './narrator.js';
 import { unlockAudio, chime, buzz, wantWakeLock, retryWakeLock } from './cues.js';
@@ -201,6 +201,8 @@ document.addEventListener('pointerdown', () => {
   unlockSpeech();
   retryWakeLock();
 }, { passive: true });
+// iOS Safari only shows :active (the button squish) when the page listens for touches.
+document.addEventListener('touchstart', () => {}, { passive: true });
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -219,10 +221,11 @@ function render() {
   const name = screenName();
   const ctx = { state, actions, notice: NOTICES[state.notice] };
   const screen = SCREENS[name];
+  document.body.dataset.screen = name;
   if (current === name && screen.update) {
     screen.update(ctx);
   } else {
-    app.replaceChildren(screen.render(ctx));
+    swap(app, screen.render(ctx), current !== null && current !== name);
     current = name;
   }
 

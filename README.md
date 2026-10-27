@@ -50,7 +50,10 @@ npm run test:e2e
 ```
 
 ## Art and fonts
-All illustrations (the mice, cheese, moon, mouse hole, …) are original SVGs in
-`public/img`, drawn for this project. Fonts: [Fredoka](https://github.com/hafontia/Fredoka-One)
+All illustrations (the mice, cheese, moon, mouse hole, …) are original SVGs, in
+`public/img` or drawn in code in `public/js/components.js`, made for this project.
+Animations are plain CSS (plus a little JS for the flip-board code, confetti and vote
+count-up) and switch off when a phone asks for reduced motion. The night sky follows only
+the step of the game, so every sleeping phone looks exactly alike. Fonts: [Fredoka](https://github.com/hafontia/Fredoka-One)
 and [Nunito](https://github.com/googlefonts/nunito), both under the SIL Open Font License
 (licence files next to the fonts in `public/fonts`). No assets from the physical game are used.

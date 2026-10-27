@@ -48,35 +48,33 @@ const FURS = [
   ['#c4a68f', '#a88a72'], // cocoa
 ];
 
-function furFor(id) {
+function hashOf(id) {
   let hash = 0;
   for (const ch of String(id)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  return FURS[hash % FURS.length];
+  return hash;
 }
 
 export function avatar(player, size = 48) {
-  const [face, ear] = furFor(player.id);
+  const hash = hashOf(player.id);
+  const [face, ear] = FURS[hash % FURS.length];
   const ink = '#2b1d14';
-  const parts = [
-    svg('circle', { cx: 16, cy: 20, r: 12, fill: ear, stroke: ink, 'stroke-width': 2.5 }),
-    svg('circle', { cx: 48, cy: 20, r: 12, fill: ear, stroke: ink, 'stroke-width': 2.5 }),
-    svg('circle', { cx: 16, cy: 20, r: 6.5, fill: '#f4a7b9' }),
-    svg('circle', { cx: 48, cy: 20, r: 6.5, fill: '#f4a7b9' }),
-  ];
+  const earAt = (cx, side) => svg('g', { class: `ear ear-${side}` }, [
+    svg('circle', { cx, cy: 20, r: 12, fill: ear, stroke: ink, 'stroke-width': 2.5 }),
+    svg('circle', { cx, cy: 20, r: 6.5, fill: '#f4a7b9' }),
+  ]);
+  const parts = [earAt(16, 'l'), earAt(48, 'r')];
   if (player.isBot) {
     parts.push(svg('path', { d: 'M32 20 V8', stroke: ink, 'stroke-width': 2.5, 'stroke-linecap': 'round' }));
     parts.push(svg('circle', { cx: 32, cy: 7, r: 3.5, fill: '#ffc23d', stroke: ink, 'stroke-width': 2 }));
   }
   parts.push(svg('ellipse', { cx: 32, cy: 38, rx: 20, ry: 18, fill: face, stroke: ink, 'stroke-width': 2.5 }));
-  if (player.isBot) {
-    parts.push(svg('rect', { x: 22, y: 32, width: 6, height: 6, rx: 1.5, fill: ink }));
-    parts.push(svg('rect', { x: 36, y: 32, width: 6, height: 6, rx: 1.5, fill: ink }));
-  } else {
-    parts.push(svg('circle', { cx: 25, cy: 35, r: 3, fill: ink }));
-    parts.push(svg('circle', { cx: 39, cy: 35, r: 3, fill: ink }));
-    parts.push(svg('circle', { cx: 26, cy: 34, r: 1, fill: '#fff' }));
-    parts.push(svg('circle', { cx: 40, cy: 34, r: 1, fill: '#fff' }));
-  }
+  parts.push(svg('g', { class: 'eyes' }, player.isBot
+    ? [svg('rect', { x: 22, y: 32, width: 6, height: 6, rx: 1.5, fill: ink }),
+      svg('rect', { x: 36, y: 32, width: 6, height: 6, rx: 1.5, fill: ink })]
+    : [svg('circle', { cx: 25, cy: 35, r: 3, fill: ink }),
+      svg('circle', { cx: 39, cy: 35, r: 3, fill: ink }),
+      svg('circle', { cx: 26, cy: 34, r: 1, fill: '#fff' }),
+      svg('circle', { cx: 40, cy: 34, r: 1, fill: '#fff' })]));
   parts.push(svg('ellipse', { cx: 20.5, cy: 43, rx: 3.6, ry: 2.1, fill: '#f4a7b9', opacity: 0.8 }));
   parts.push(svg('ellipse', { cx: 43.5, cy: 43, rx: 3.6, ry: 2.1, fill: '#f4a7b9', opacity: 0.8 }));
   parts.push(svg('circle', { cx: 32, cy: 43, r: 2.8, fill: '#ef7f9c', stroke: ink, 'stroke-width': 1.5 }));
@@ -84,6 +82,10 @@ export function avatar(player, size = 48) {
   const el = h('span', { class: `avatar${player.isHost ? ' host' : ''}`, 'aria-hidden': 'true' });
   el.style.width = `${size}px`;
   el.style.height = `${size}px`;
+  // Each mouse blinks and twitches at its own pace, the same on every phone.
+  el.style.setProperty('--blink', `${4 + (hash % 5) * 0.8}s`);
+  el.style.setProperty('--twitch', `${7 + ((hash >>> 3) % 6)}s`);
+  el.style.setProperty('--delay', `-${(hash >>> 6) % 9}s`);
   el.append(svg('svg', { viewBox: '0 0 64 64' }, parts));
   return el;
 }
@@ -128,18 +130,18 @@ const ROLE_INFO = {
 export function holdCard(me, { compact = false } = {}) {
   const info = ROLE_INFO[me.role];
   const secret = compact
-    ? h('div', { class: 'secret' },
+    ? h('div', { class: 'face secret' },
       art(info.art, 'role-art'),
       h('div', { class: 'grow' }, h('h3', {}, info.short), h('p', { class: 'small' }, `You wake at ${me.die} o'clock`)),
       dieFace(me.die, 48))
-    : h('div', { class: 'secret' },
+    : h('div', { class: 'face secret' },
       art(info.art, 'role-art'),
       h('h2', {}, info.title),
       h('div', { class: 'die-row' }, dieFace(me.die, 60), h('span', {}, 'You wake at', h('br'), h('strong', {}, `${me.die} o'clock`))),
       h('p', { class: 'small' }, info.hint));
   const cover = compact
-    ? h('div', { class: 'cover' }, h('span', { class: 'badge-pill' }, '🤫 Hold to see your card'))
-    : h('div', { class: 'cover' },
+    ? h('div', { class: 'face cover' }, h('span', { class: 'badge-pill' }, '🤫 Hold to see your card'))
+    : h('div', { class: 'face cover' },
       art('logo', 'logo small'),
       h('span', { class: 'badge-pill' }, 'Press & hold to peek'),
       h('span', { class: 'hint' }, "Make sure nobody's looking!"));
@@ -148,7 +150,7 @@ export function holdCard(me, { compact = false } = {}) {
     tabindex: 0,
     role: 'button',
     'aria-label': 'Press and hold to see your role and die',
-  }, cover, secret);
+  }, h('div', { class: 'flip' }, cover, secret));
 
   const open = (e) => {
     e.preventDefault();
@@ -227,4 +229,63 @@ export function narrationButton(on, onToggle) {
     'aria-pressed': on ? 'true' : 'false',
     onClick: onToggle,
   }, speakerIcon(on));
+}
+
+// A mouse that pops up in its mouse hole, looks left and right, and ducks back down.
+// Without the wall it's just the hole, for setting into the bottom edge of a screen.
+let holeIds = 0;
+export function peekingMouse(className = '', { wall = true } = {}) {
+  const ink = '#2b1d14';
+  const hole = 'M60 128 V96 A40 40 0 0 1 140 96 V128 Z';
+  const clipId = `mousehole-${++holeIds}`;
+  const ear = (cx) => [
+    svg('circle', { cx, cy: 86, r: 12, fill: '#d6b08c', stroke: ink, 'stroke-width': 3 }),
+    svg('circle', { cx, cy: 86, r: 6, fill: '#f4a7b9' }),
+  ];
+  const mouse = svg('g', { class: 'peek-mouse' }, [
+    ...ear(80), ...ear(120),
+    svg('ellipse', { cx: 100, cy: 110, rx: 25, ry: 21, fill: '#e8cdb0', stroke: ink, 'stroke-width': 3 }),
+    svg('circle', { cx: 90, cy: 104, r: 5.5, fill: '#fff' }),
+    svg('circle', { cx: 110, cy: 104, r: 5.5, fill: '#fff' }),
+    svg('g', { class: 'peek-eyes' }, [
+      svg('circle', { cx: 90, cy: 105, r: 3, fill: ink }),
+      svg('circle', { cx: 110, cy: 105, r: 3, fill: ink }),
+    ]),
+    svg('ellipse', { cx: 100, cy: 116, rx: 4, ry: 3, fill: '#ef7f9c', stroke: ink, 'stroke-width': 1.5 }),
+    svg('path', { d: 'M92 117 l-14 -3 M92 120 l-14 2 M108 117 l14 -3 M108 120 l14 2', stroke: ink, 'stroke-width': 1.5, 'stroke-linecap': 'round' }),
+  ]);
+  const scene = [
+    svg('path', { d: hole, fill: ink }),
+    svg('clipPath', { id: clipId }, [svg('path', { d: hole })]),
+    svg('g', { 'clip-path': `url(#${clipId})` }, [mouse]),
+    svg('path', { d: 'M60 128 V96 A40 40 0 0 1 140 96 V128', fill: 'none', stroke: '#7a5536', 'stroke-width': 5 }),
+  ];
+  if (wall) {
+    scene.unshift(
+      svg('rect', { x: 0, y: 0, width: 200, height: 132, rx: 10, fill: '#e9d3ae' }),
+      svg('path', { d: 'M0 34 H200 M0 70 H200 M0 106 H200 M50 0 V34 M140 0 V34 M95 34 V70 M20 70 V106 M170 70 V106 M120 106 V132', stroke: '#d9bf95', 'stroke-width': 2 }),
+    );
+    scene.push(svg('rect', { x: 0, y: 126, width: 200, height: 24, rx: 4, fill: '#a8774f', stroke: ink, 'stroke-width': 3 }));
+  }
+  return svg('svg', {
+    viewBox: wall ? '0 0 200 150' : '52 50 96 79', class: `art peeker ${className}`, role: 'img', 'aria-label': 'A mouse peeking out of a mouse hole',
+  }, scene);
+}
+
+// The dawn sun, drawn inline so it can rise from behind the hill.
+export function sunrise(className = '') {
+  const ink = '#2b1d14';
+  const line = { fill: 'none', stroke: ink, 'stroke-width': 3.5, 'stroke-linecap': 'round' };
+  return svg('svg', { viewBox: '0 0 160 120', class: `art sunrise ${className}`, role: 'img', 'aria-label': 'The sun rising over a hill' }, [
+    svg('g', { class: 'sun-body' }, [
+      svg('g', { class: 'rays', stroke: '#e59a12', 'stroke-width': 6, 'stroke-linecap': 'round' }, [
+        svg('path', { d: 'M80 10 v14' }), svg('path', { d: 'M30 30 l10 10' }), svg('path', { d: 'M130 30 l-10 10' }),
+        svg('path', { d: 'M10 74 h14' }), svg('path', { d: 'M136 74 h14' }),
+      ]),
+      svg('circle', { cx: 80, cy: 78, r: 38, fill: '#ffc23d', stroke: ink, 'stroke-width': 4 }),
+      svg('path', { ...line, d: 'M64 74 q6 -6 12 0 M84 74 q6 -6 12 0' }),
+      svg('path', { ...line, d: 'M70 88 q10 8 20 0' }),
+    ]),
+    svg('path', { d: 'M0 120 V100 Q40 82 80 96 Q120 110 160 92 V120 Z', fill: '#8fbf86', stroke: ink, 'stroke-width': 4, 'stroke-linejoin': 'round' }),
+  ]);
 }
