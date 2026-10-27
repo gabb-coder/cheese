@@ -49,6 +49,13 @@ npm i --no-save playwright && npx playwright install chromium
 npm run test:e2e
 ```
 
+## Music
+Four original music-box tunes, composed in `public/js/music.js` and synthesised by the phone
+(no audio files): a waltz for the lobby, a lullaby for the night, a bouncy tune for the
+morning and results, and a ticking clock for the vote. They play on the narrator phone by
+default, duck while the narrator speaks, and follow only the step of the game, so they give
+nothing away. Any phone can switch the music on or off in ⚙️.
+
 ## Languages
 English and Simplified Chinese (Mandarin, 奶酪大盗). Each phone picks its own language with
 the ⚙️ button (Home, Lobby and the in-game top bar); it starts in Chinese when the phone's

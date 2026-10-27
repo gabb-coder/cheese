@@ -36,6 +36,7 @@ const SHELL = [
   '/js/dom.js',
   '/js/i18n.js',
   '/js/main.js',
+  '/js/music.js',
   '/js/narrator.js',
   '/js/net.js',
   '/js/screens/connecting.js',

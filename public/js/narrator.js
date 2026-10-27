@@ -45,6 +45,12 @@ export function narratesHere(view) {
   return view.room.hostId === view.me.id && view.room.settings.narratorOnHost;
 }
 
+// Music follows the narrator by default ('auto'); any phone can turn it on or off.
+export function musicHere(view) {
+  if (prefs.music === 'on' || prefs.music === 'off') return prefs.music === 'on';
+  return narratesHere(view);
+}
+
 export function toggleNarration(view) {
   prefs.narration = narratesHere(view) ? 'off' : 'on';
 }
