@@ -7,8 +7,9 @@ A private, mobile-first web version of the social deduction game *Cheese Thief*
 - Plan: [PLAN.md](PLAN.md)
 
 ## Status
-Milestone 2 of 6: rules, server, WebSocket protocol and lobby. The game starts, but the
-night, day and results screens arrive in Milestones 3 and 4.
+Milestone 3 of 6: lobby, role reveal and the full night (narration, timers, per-player
+views). The discussion, vote and results screens arrive in Milestone 4; until then the
+day phases show your private night notes and run on their timers.
 
 ## Run it locally
 Requires Node 20 or newer.
@@ -23,8 +24,12 @@ Solo testing: create a room, then tap "Add a bot" three times. To be several pla
 one computer, open tabs with `?debug=1&seat=1`, `?debug=1&seat=2`, ... (each tab gets its
 own seat).
 
+Fast solo test: open `http://localhost:3000/?debug=1`, create a room, add 3 bots, open
+**Game settings** and tap **Fast timers**, then start.
+
 Environment variables: `PORT` (default 3000), `ENABLE_BOTS=false` to hide bots,
-`LOG_LEVEL=debug` for room logs.
+`LOG_LEVEL=debug` for room logs, `TIME_SCALE=0.2` (debugging only) to run every timer
+five times faster.
 
 ## Run the tests
 

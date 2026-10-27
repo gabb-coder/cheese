@@ -3,24 +3,16 @@ import assert from 'node:assert/strict';
 
 import { createServer } from '../server/index.js';
 import { TestClient } from './helpers/client.js';
-import { assertWireMessage } from './helpers/wire.js';
+import { createAuditor } from './helpers/auditor.js';
 
 let srv;
 let clients;
-let audits;
+let auditor;
 
 async function start(options = {}) {
-  audits = new Map();
+  auditor = createAuditor();
   clients = [];
-  srv = await createServer({
-    host: '127.0.0.1',
-    botDelayMs: 10,
-    audit: (seatId, msg, game) => {
-      if (!audits.has(seatId)) audits.set(seatId, []);
-      audits.get(seatId).push({ text: JSON.stringify(msg), game, used: false });
-    },
-    ...options,
-  });
+  srv = await createServer({ host: '127.0.0.1', botDelayMs: 10, audit: auditor.audit, ...options });
 }
 
 async function connect(label = `c${clients.length + 1}`) {
@@ -61,35 +53,10 @@ async function lobbyOf(n) {
 const settle = (ms = 40) => new Promise((r) => setTimeout(r, ms));
 const playerNames = (view) => view.players.map((p) => p.name);
 
-// Every message every client received must be allowed (schema + entitlement), and every
-// view must be exactly one the server audited for that seat, together with its game state.
-function verifyWire() {
-  const allTokens = clients.flatMap((c) => c.messages.filter((m) => m.t === 'welcome').map((m) => m.token));
-  for (const c of clients) {
-    let seatId = null;
-    let token = null;
-    for (const msg of c.messages) {
-      if (msg.t === 'welcome') {
-        seatId = msg.playerId;
-        token = msg.token;
-      }
-      let game = null;
-      if (msg.t === 'view') {
-        const text = JSON.stringify(msg);
-        const entry = (audits.get(seatId) ?? []).find((a) => !a.used && a.text === text);
-        assert.ok(entry, `${c.label}: received a view the server never built for seat ${seatId}`);
-        entry.used = true;
-        game = entry.game;
-      }
-      assertWireMessage(msg, { seatId, token, game, allTokens });
-    }
-  }
-}
-
 beforeEach(() => start());
 afterEach(async () => {
   try {
-    verifyWire();
+    auditor.verify(clients);
   } finally {
     await Promise.all(clients.map((c) => c.close()));
     await srv.close();
@@ -355,7 +322,7 @@ describe('starting a game', () => {
       assert.equal(v.me.id, all[i].id);
       assert.ok(v.me.die >= 1 && v.me.die <= 6);
     }
-    // verifyWire (afterEach) checks every message against what each player may know.
+    // auditor.verify (afterEach) checks every message against what each player may know.
   });
 
   it('blocks late joiners once the game has started', async () => {

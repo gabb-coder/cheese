@@ -5,6 +5,9 @@
 import { Connection } from './net.js';
 import { session, prefs } from './storage.js';
 import { h, toast } from './dom.js';
+import { syncServerTime, startCountdowns } from './clock.js';
+import { stepKey, lineFor, narratesHere, toggleNarration, speak, unlockSpeech } from './narrator.js';
+import { unlockAudio, chime, buzz, wantWakeLock, retryWakeLock } from './cues.js';
 import * as connecting from './screens/connecting.js';
 import * as home from './screens/home.js';
 import * as lobby from './screens/lobby.js';
@@ -57,6 +60,13 @@ const actions = {
   leave() {
     actions.send({ t: 'leave' });
   },
+  toggleNarration() {
+    if (!state.view) return;
+    toggleNarration(state.view);
+    unlockSpeech();
+    unlockAudio();
+    render();
+  },
   dismissNotice() {
     const key = state.notice;
     state.notice = null;
@@ -74,6 +84,8 @@ function hello() {
 }
 
 function forgetRoom(noticeKey) {
+  document.body.dataset.mood = 'day';
+  wantWakeLock(false);
   session.clear();
   state.view = null;
   state.pendingHello = false;
@@ -108,6 +120,8 @@ conn.addEventListener('message', ({ detail: msg }) => {
       setRoomInUrl(msg.room);
       return;
     case 'view':
+      syncServerTime(msg.serverNow);
+      onStep(state.view, msg);
       state.view = msg;
       state.pendingHello = false;
       break;
@@ -141,6 +155,33 @@ function handleError(msg) {
     toast(msg.message);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Step changes: narration, chimes, vibration, wake lock, night mood
+
+const NIGHT_STEPS = new Set(['NIGHT_INTRO', 'HOUR', 'FOLLOWER_CHOICE', 'FOLLOWER_MEET']);
+const IN_GAME = new Set(['ROLE_REVEAL', ...NIGHT_STEPS, 'DAWN', 'DISCUSSION', 'VOTE']);
+
+function onStep(prev, next) {
+  const phase = next.phase.name;
+  document.body.dataset.mood = NIGHT_STEPS.has(phase) ? 'night' : phase === 'DAWN' ? 'dawn' : 'day';
+  wantWakeLock(IN_GAME.has(phase));
+
+  // Only react to a step *change* seen live, not to the first view after (re)connecting.
+  if (!prev || stepKey(prev) === stepKey(next)) return;
+  if (NIGHT_STEPS.has(phase) || phase === 'DAWN') buzz(); // identical on every phone (D7)
+  if (narratesHere(next)) {
+    chime(phase === 'NIGHT_INTRO' ? 'night' : phase === 'DAWN' ? 'dawn' : 'hour');
+    setTimeout(() => speak(lineFor(next)), 600);
+  }
+}
+
+// Browsers only allow sound, speech and vibration after the player has tapped something.
+document.addEventListener('pointerdown', () => {
+  unlockAudio();
+  unlockSpeech();
+  retryWakeLock();
+}, { passive: true });
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -178,4 +219,5 @@ function render() {
 }
 
 render();
+startCountdowns();
 conn.connect();

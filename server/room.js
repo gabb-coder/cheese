@@ -8,7 +8,9 @@
 // rules.viewFor(game, seatId), sent to that seat's own connection.
 
 import { randomBytes } from 'node:crypto';
-import { RULE_OPTIONS, PHASE, createGame, applyIntent, viewFor } from '../game/rules.js';
+import {
+  RULE_OPTIONS, PHASE, createGame, applyIntent, advance, stealDeadline, canEndEarly, viewFor,
+} from '../game/rules.js';
 import { cryptoRng } from '../game/rng.js';
 import { nameKey, ERROR_TEXT } from './protocol.js';
 import { botIntent, BOT_NAMES } from './bots.js';
@@ -22,6 +24,18 @@ export const DEFAULT_SETTINGS = Object.freeze({
 });
 
 export const LOBBY = 'LOBBY';
+
+// Steps whose length isn't a host setting (seconds).
+export const FIXED_SECONDS = Object.freeze({
+  [PHASE.ROLE_REVEAL]: 45, // ends early once everyone has confirmed
+  [PHASE.NIGHT_INTRO]: 8,
+  [PHASE.FOLLOWER_MEET]: 8,
+  [PHASE.DAWN]: 6,
+});
+
+// PLAN.md D1: the steal is forced this long before the Thief's hour ends (at most 40% of
+// the hour), so the others awake still see it happen.
+const STEAL_DEADLINE_LEAD_SEC = 5;
 
 // While players have their eyes closed, public changes (someone reconnecting, say) are held
 // back until the next phase change. Otherwise a phone waking up for its hour and
@@ -48,6 +62,7 @@ export class Room {
     botDelayMs = 800,
     onClose = () => {},
     audit = null,
+    timeScale = 1, // tests only: shrink every timer
   } = {}) {
     this.code = code;
     this.enableBots = enableBots;
@@ -57,6 +72,7 @@ export class Room {
     this.botDelayMs = botDelayMs;
     this.onClose = onClose;
     this.audit = audit; // tests only: (seatId, message, game) for every message sent to a seat
+    this.timeScale = timeScale;
 
     this.seats = new Map(); // seatId -> seat
     this.tokens = new Map(); // token -> seatId
@@ -67,6 +83,9 @@ export class Room {
     this.closed = false;
     this.pendingPublic = false;
     this.botTimer = null;
+    this.phaseTimer = null;
+    this.stealTimer = null;
+    this.endsAt = null;
   }
 
   get phase() {
@@ -188,6 +207,7 @@ export class Room {
     if (this.closed) return;
     this.closed = true;
     if (this.botTimer) this.timers.clearTimeout(this.botTimer);
+    this.clearClock();
     for (const seat of this.seats.values()) {
       if (!seat.conn) continue;
       const conn = seat.conn;
@@ -273,6 +293,7 @@ export class Room {
         if (!inLobby) return 'WRONG_PHASE';
         if (this.seats.size < RULE_OPTIONS.minPlayers) return 'NOT_ENOUGH_PLAYERS';
         this.game = createGame([...this.seats.keys()], this.rng);
+        this.startClock();
         this.broadcastViews();
         return null;
 
@@ -287,8 +308,59 @@ export class Room {
     const res = applyIntent(this.game, seatId, intent);
     if (res.error) return res.error;
     this.game = res.game;
-    this.broadcastViews(res.notify);
+    if (canEndEarly(this.game)) this.nextPhase();
+    else this.broadcastViews(res.notify);
     return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // The game clock. Every step runs for a fixed time whatever anyone does (PLAN.md D3);
+  // only role reveal and the vote end early, when everyone is done.
+
+  phaseMs(game) {
+    const seconds = {
+      ...FIXED_SECONDS,
+      [PHASE.HOUR]: this.settings.hourSec,
+      [PHASE.FOLLOWER_CHOICE]: this.settings.followerChoiceSec,
+      [PHASE.DISCUSSION]: this.settings.discussionSec,
+      [PHASE.VOTE]: this.settings.voteSec,
+    }[game.phase];
+    return seconds === undefined ? null : seconds * 1000 * this.timeScale;
+  }
+
+  startClock() {
+    this.clearClock();
+    const ms = this.phaseMs(this.game);
+    this.endsAt = ms === null ? null : this.now() + ms;
+    if (ms === null) return;
+    this.phaseTimer = this.timers.setTimeout(() => this.nextPhase(), ms);
+
+    if (this.game.phase === PHASE.HOUR) {
+      // Scheduled every hour, not just the Thief's, so the server behaves the same either way.
+      const lead = Math.min(STEAL_DEADLINE_LEAD_SEC * 1000 * this.timeScale, ms * 0.4);
+      this.stealTimer = this.timers.setTimeout(() => {
+        this.stealTimer = null;
+        const res = stealDeadline(this.game);
+        this.game = res.game;
+        this.broadcastViews(res.notify);
+      }, ms - lead);
+    }
+  }
+
+  clearClock() {
+    if (this.phaseTimer) this.timers.clearTimeout(this.phaseTimer);
+    if (this.stealTimer) this.timers.clearTimeout(this.stealTimer);
+    this.phaseTimer = null;
+    this.stealTimer = null;
+  }
+
+  nextPhase() {
+    if (!this.game || this.closed) return;
+    const res = advance(this.game, this.rng);
+    if (res.error) return;
+    this.game = res.game;
+    this.startClock();
+    this.broadcastViews();
   }
 
   // ---------------------------------------------------------------------------
@@ -316,7 +388,9 @@ export class Room {
       players: this.publicPlayers(),
     };
     if (!this.game) return { ...base, phase: { name: LOBBY }, me: { id: seatId } };
-    return { ...base, ...viewFor(this.game, seatId) };
+    const view = { ...base, ...viewFor(this.game, seatId) };
+    if (this.endsAt !== null) view.phase = { ...view.phase, endsAt: this.endsAt };
+    return view;
   }
 
   sendView(seatId) {

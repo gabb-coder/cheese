@@ -34,4 +34,6 @@ export const session = {
 export const prefs = {
   get name() { return read('name') ?? ''; },
   set name(value) { write('name', value); },
+  get narration() { return read('narration'); },
+  set narration(value) { write('narration', value); },
 };

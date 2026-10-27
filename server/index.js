@@ -43,9 +43,11 @@ export function createServer({
   roomTtlMs,
   botDelayMs,
   audit,
+  rng,
+  timeScale,
   log = () => {},
 } = {}) {
-  const rooms = new RoomManager({ enableBots, ttlMs: roomTtlMs, botDelayMs, audit });
+  const rooms = new RoomManager({ enableBots, ttlMs: roomTtlMs, botDelayMs, audit, rng, timeScale });
   const server = http.createServer(createApp());
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: MAX_MESSAGE_BYTES });
 
@@ -165,9 +167,11 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.PORT) || 3000;
   const enableBots = process.env.ENABLE_BOTS !== 'false';
   const verbose = process.env.LOG_LEVEL === 'debug';
+  const timeScale = Number(process.env.TIME_SCALE) || 1; // debugging only: 0.2 = five times faster
   const running = await createServer({
     port,
     enableBots,
+    timeScale,
     log: (line) => verbose && console.log(line),
   });
   console.log(`Cheese Thief listening on http://0.0.0.0:${running.port} (bots ${enableBots ? 'on' : 'off'})`);

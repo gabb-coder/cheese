@@ -17,6 +17,41 @@ function shareLink(code) {
   ) ?? toast(url, 6000);
 }
 
+const DEBUG = new URLSearchParams(location.search).has('debug');
+const FAST = { hourSec: 5, followerChoiceSec: 10, discussionSec: 30, voteSec: 15 };
+
+function select(label, value, options, onChange) {
+  const id = `set-${label.replace(/\W/g, '')}`;
+  const el = h('select', { id, onChange: () => onChange(Number(el.value)) },
+    options.map(([v, text]) => h('option', { value: String(v), selected: v === value }, text)));
+  // Keep the current value selectable even if it isn't one of the presets (e.g. fast timers).
+  if (!options.some(([v]) => v === value)) el.prepend(h('option', { value: String(value), selected: true }, `${value} s`));
+  return h('div', { class: 'setting' }, h('label', { for: id }, label), el);
+}
+
+function settingsCard(view, isHost, actions) {
+  const s = view.room.settings;
+  const set = (patch) => actions.send({ t: 'settings', settings: patch });
+  const mins = (sec) => (sec % 60 ? `${sec} s` : `${sec / 60} min`);
+  if (!isHost) {
+    return h('p', { class: 'muted small hero' },
+      `${s.hourSec} s per hour · ${mins(s.discussionSec)} discussion · ${s.voteSec} s to vote`);
+  }
+  return h('details', { class: 'card settings' },
+    h('summary', {}, '⚙️ Game settings'),
+    select('Each hour', s.hourSec, [[10, '10 s'], [15, '15 s'], [20, '20 s'], [30, '30 s']], (v) => set({ hourSec: v })),
+    select('Thief picks a Follower', s.followerChoiceSec, [[15, '15 s'], [20, '20 s'], [30, '30 s']], (v) => set({ followerChoiceSec: v })),
+    select('Discussion', s.discussionSec, [[60, '1 min'], [120, '2 min'], [180, '3 min'], [300, '5 min'], [480, '8 min']],
+      (v) => set({ discussionSec: v })),
+    select('Voting', s.voteSec, [[30, '30 s'], [45, '45 s'], [60, '60 s']], (v) => set({ voteSec: v })),
+    h('label', { class: 'check' },
+      h('input', { type: 'checkbox', checked: s.narratorOnHost, onChange: (e) => set({ narratorOnHost: e.target.checked }) }),
+      ' Narrate out loud on my phone'),
+    h('p', { class: 'muted small' }, 'Any player can also switch narration on or off for their own phone with 🔊 during the game.'),
+    DEBUG ? h('button', { class: 'btn-secondary btn-small', onClick: () => set(FAST) }, '⚡ Fast timers (testing)') : null,
+  );
+}
+
 export function render({ state, actions }) {
   const view = state.view;
   const meId = view.me.id;
@@ -67,6 +102,7 @@ export function render({ state, actions }) {
       h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'Mice in the house'), h('span', { class: 'muted' }, `${count}/${MAX_PLAYERS}`)),
       list,
     ),
+    settingsCard(view, isHost, actions),
     h('div', { class: 'grow' }),
     hostControls,
     h('button', { class: 'btn-ghost', onClick: () => actions.leave() }, 'Leave room'),
