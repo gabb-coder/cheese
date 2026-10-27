@@ -19,6 +19,7 @@ function shareLink(code) {
 
 const DEBUG = new URLSearchParams(location.search).has('debug');
 const FAST = { hourSec: 5, followerChoiceSec: 10, discussionSec: 30, voteSec: 15 };
+let settingsOpen = false;
 
 function select(label, value, options, onChange) {
   const id = `set-${label.replace(/\W/g, '')}`;
@@ -37,7 +38,7 @@ function settingsCard(view, isHost, actions) {
     return h('p', { class: 'muted small hero' },
       `${s.hourSec} s per hour · ${mins(s.discussionSec)} discussion · ${s.voteSec} s to vote`);
   }
-  return h('details', { class: 'card settings' },
+  const details = h('details', { class: 'card settings', open: settingsOpen },
     h('summary', {}, '⚙️ Game settings'),
     select('Each hour', s.hourSec, [[10, '10 s'], [15, '15 s'], [20, '20 s'], [30, '30 s']], (v) => set({ hourSec: v })),
     select('Thief picks a Follower', s.followerChoiceSec, [[15, '15 s'], [20, '20 s'], [30, '30 s']], (v) => set({ followerChoiceSec: v })),
@@ -50,6 +51,9 @@ function settingsCard(view, isHost, actions) {
     h('p', { class: 'muted small' }, 'Any player can also switch narration on or off for their own phone with 🔊 during the game.'),
     DEBUG ? h('button', { class: 'btn-secondary btn-small', onClick: () => set(FAST) }, '⚡ Fast timers (testing)') : null,
   );
+  // The lobby re-renders on every change; keep the panel open if the host opened it.
+  details.addEventListener('toggle', () => { settingsOpen = details.open; });
+  return details;
 }
 
 export function render({ state, actions }) {

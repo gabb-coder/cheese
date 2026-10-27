@@ -321,3 +321,77 @@ describe('night: what goes over the wire', () => {
     }
   });
 });
+
+describe('day and replay', () => {
+  const toPhase = (env, phase) => {
+    let guard = 0;
+    while (env.room.phase !== phase && guard++ < 1000) env.clock.tick(1_000);
+    assert.equal(env.room.phase, phase);
+  };
+
+  it('the host can end the discussion early; nobody else can, and not in other phases', () => {
+    const env = setup();
+    start(env);
+    env.room.handle(env.host, { t: 'endDiscussion' });
+    assert.equal(env.host.last.code, 'WRONG_PHASE');
+    toPhase(env, PHASE.DISCUSSION);
+    env.room.handle(env.conns[1], { t: 'endDiscussion' });
+    assert.equal(env.conns[1].last.code, 'NOT_HOST');
+    env.clock.tick(5_000);
+    env.room.handle(env.host, { t: 'endDiscussion' });
+    assert.equal(env.room.phase, PHASE.VOTE);
+    assert.equal(env.host.last.phase.endsAt - env.clock.now(), 45_000, 'the vote gets its full time');
+    env.verify();
+  });
+
+  it('results show everyone the same outcome', () => {
+    const env = setup({ humans: 5 });
+    const game = start(env);
+    toPhase(env, PHASE.VOTE);
+    for (const c of env.conns) {
+      if (c.seatId !== game.thiefId) env.room.handle(c, { t: 'vote', playerId: game.thiefId });
+    }
+    env.clock.tick(45_000);
+    assert.equal(env.room.phase, PHASE.RESULTS);
+    const results = env.conns.map((c) => JSON.stringify(c.last.results));
+    assert.equal(new Set(results).size, 1);
+    assert.equal(env.host.last.results.thiefCaught, true);
+    env.verify();
+  });
+
+  it('play again: host only, from the results, back to the lobby with the same seats', () => {
+    const env = setup({ humans: 3, bots: 2 });
+    start(env);
+    toPhase(env, PHASE.RESULTS);
+    env.room.handle(env.conns[1], { t: 'playAgain' });
+    assert.equal(env.conns[1].last.code, 'NOT_HOST');
+    const seatsBefore = [...env.room.seats.keys()].sort();
+    env.room.handle(env.host, { t: 'playAgain' });
+    assert.equal(env.room.phase, 'LOBBY');
+    assert.equal(env.room.game, null);
+    assert.deepEqual([...env.room.seats.keys()].sort(), seatsBefore);
+    for (const c of env.conns) {
+      assert.deepEqual(c.last.phase, { name: 'LOBBY' });
+      assert.equal(c.last.results, undefined, 'no game data left in lobby views');
+    }
+    assert.equal(env.clock.timers.size, 0, 'no game timers left');
+    env.room.handle(env.host, { t: 'playAgain' });
+    assert.equal(env.host.last.code, 'WRONG_PHASE');
+    env.verify();
+  });
+
+  it('a new round deals again, and new players can join between rounds', () => {
+    const env = setup({ humans: 4 });
+    start(env);
+    toPhase(env, PHASE.RESULTS);
+    env.room.handle(env.host, { t: 'playAgain' });
+    const late = fakeConn('late');
+    assert.equal(env.room.join(late, 'Latecomer'), null);
+    env.room.handle(env.host, { t: 'start' });
+    assert.equal(env.room.phase, PHASE.ROLE_REVEAL);
+    assert.equal(env.room.game.playerIds.length, 5);
+    assert.equal(env.room.game.revealed.length, 0);
+    assert.equal(env.room.game.followerId, null);
+    assert.equal(late.last.me.id, late.seatId);
+  });
+});

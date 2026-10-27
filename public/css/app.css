@@ -269,3 +269,21 @@ body[data-mood="dawn"] { background: radial-gradient(120% 80% at 50% 0%, #6b4f8f
 
 /* Day */
 .notes ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }
+
+/* Vote */
+.vote-choice { min-height: 64px; }
+.vote-choice[aria-pressed="true"] { background: var(--cheddar); color: var(--on-cheddar); border-color: var(--cheddar-dark); }
+.voted { align-items: center; }
+details.card summary { font-weight: 800; cursor: pointer; }
+details.card .notes { border: 0; padding: 8px 0 0; background: transparent; }
+
+/* Results */
+.outcome { font-size: 1.3rem; font-weight: 900; margin-top: 6px; }
+.outcome.win { color: var(--ok); }
+.outcome.lose { color: var(--danger); }
+.reveal-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.reveal-row strong { text-align: right; }
+.tally, .everyone { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tally li, .everyone li { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 4px 10px; border-radius: 12px; background: var(--card-hi); }
+.tally li.leader { outline: 2px solid var(--cheddar); }
+.tally .count { min-width: 1.5em; text-align: right; font-size: 1.2rem; }

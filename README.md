@@ -7,9 +7,9 @@ A private, mobile-first web version of the social deduction game *Cheese Thief*
 - Plan: [PLAN.md](PLAN.md)
 
 ## Status
-Milestone 3 of 6: lobby, role reveal and the full night (narration, timers, per-player
-views). The discussion, vote and results screens arrive in Milestone 4; until then the
-day phases show your private night notes and run on their timers.
+Milestone 4 of 6: the whole game is playable: lobby, role reveal, the night (narration,
+timers, per-player views), discussion, the secret vote, results and "play again".
+Still to come: reconnect and cold-start polish (5), and the Render deployment files (6).
 
 ## Run it locally
 Requires Node 20 or newer.

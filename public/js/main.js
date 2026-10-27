@@ -170,8 +170,8 @@ function onStep(prev, next) {
   // Only react to a step *change* seen live, not to the first view after (re)connecting.
   if (!prev || stepKey(prev) === stepKey(next)) return;
   if (NIGHT_STEPS.has(phase) || phase === 'DAWN') buzz(); // identical on every phone (D7)
-  if (narratesHere(next)) {
-    chime(phase === 'NIGHT_INTRO' ? 'night' : phase === 'DAWN' ? 'dawn' : 'hour');
+  if (narratesHere(next) && lineFor(next)) {
+    chime(phase === 'NIGHT_INTRO' ? 'night' : phase === 'DAWN' || phase === 'RESULTS' ? 'dawn' : 'hour');
     setTimeout(() => speak(lineFor(next)), 600);
   }
 }

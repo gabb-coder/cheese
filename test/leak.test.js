@@ -35,10 +35,18 @@ after(async () => {
 });
 
 // A client that plays by itself, sometimes hesitating or doing nothing, from its own view.
-function autoplay(client, rng) {
+// The host sometimes ends the discussion early.
+function autoplay(client, rng, isHost) {
+  let lastStep = '';
   client.ws.on('message', (data) => {
     const msg = JSON.parse(data.toString());
     if (msg.t !== 'view' || msg.phase.name === 'LOBBY') return;
+    const step = `${msg.phase.name}${msg.phase.hour ?? ''}`;
+    const newStep = step !== lastStep;
+    lastStep = step;
+    if (isHost && newStep && msg.phase.name === PHASE.DISCUSSION && rng() < 0.5) {
+      setTimeout(() => client.send({ t: 'endDiscussion' }), Math.floor(rng() * 40));
+    }
     const intent = botIntent(msg, rng);
     if (!intent || rng() < 0.25) return;
     setTimeout(() => client.send(intent), Math.floor(rng() * 30));
@@ -61,11 +69,21 @@ async function playGame(n, seed) {
     c.send({ t: 'join', room, name: `P${i + 2}` });
     await c.waitFor('welcome');
   }
-  for (const c of clients) autoplay(c, rng);
+  clients.forEach((c, i) => autoplay(c, rng, i === 0));
   await host.waitForView((v) => v.players.length === n);
-  host.send({ t: 'start' });
-  await Promise.all(clients.map((c) => c.waitForView((v) => v.phase.name === PHASE.RESULTS, 10_000)));
-  return { clients, game: srv.rooms.get(room).game };
+
+  // Two rounds in the same room, with "play again" in between.
+  const rounds = [];
+  for (let round = 0; round < 2; round++) {
+    host.send({ t: 'start' });
+    await Promise.all(clients.map((c) => c.waitForView((v) => v.phase.name === PHASE.RESULTS, 10_000)));
+    rounds.push(srv.rooms.get(room).game);
+    if (round === 0) {
+      host.send({ t: 'playAgain' });
+      await Promise.all(clients.map((c) => c.waitForView((v) => v.phase.name === 'LOBBY')));
+    }
+  }
+  return { clients, rounds, game: rounds[1] };
 }
 
 describe('hidden information over the wire', () => {
@@ -79,48 +97,70 @@ describe('hidden information over the wire', () => {
     games.push(...(await Promise.all(runs)));
   });
 
-  it('every message to every player in 30 full games is allowed', () => {
+  it('every message to every player in 30 rooms x 2 rounds is allowed', () => {
     let checked = 0;
     for (const { clients } of games) checked += auditor.verify(clients);
-    assert.ok(checked > 1500, `checked ${checked} messages`);
+    assert.ok(checked > 3000, `checked ${checked} messages`);
   });
 
   it('the games really happened: every one has a steal, one Follower and a result', () => {
-    for (const { game } of games) {
-      assert.equal(game.phase, PHASE.RESULTS);
-      assert.notEqual(game.stolenAtHour, null);
-      assert.ok(game.followerId && game.followerId !== game.thiefId);
+    for (const { rounds } of games) {
+      for (const game of rounds) {
+        assert.equal(game.phase, PHASE.RESULTS);
+        assert.notEqual(game.stolenAtHour, null);
+        assert.ok(game.followerId && game.followerId !== game.thiefId);
+      }
+      assert.notEqual(rounds[0], rounds[1], 'the second round is a new deal');
     }
   });
 
+  // Each client's views, split into rounds (a lobby view separates them).
+  function viewsByRound(c) {
+    const out = [[]];
+    for (const m of c.messages) {
+      if (m.t !== 'view') continue;
+      if (m.phase.name === 'LOBBY') {
+        if (out[out.length - 1].length) out.push([]);
+        continue;
+      }
+      out[out.length - 1].push(m);
+    }
+    return out.filter((r) => r.length);
+  }
+
   it('during the night a sleeping player receives only step changes', () => {
-    for (const { clients, game } of games) {
+    for (const { clients, rounds } of games) {
       for (const c of clients) {
         const me = c.id;
-        const views = c.messages.filter((m) => m.t === 'view');
-        for (let i = 1; i < views.length; i++) {
-          const prev = views[i - 1].phase;
-          const cur = views[i].phase;
-          if (!NIGHT.has(cur.name)) continue;
-          const sameStep = prev.name === cur.name && prev.hour === cur.hour;
-          if (!sameStep) continue;
-          // A second view within one night step: only allowed if this player is active then.
-          const awakeHour = cur.name === PHASE.HOUR && game.dice[me] === cur.hour;
-          const thiefChoosing = cur.name === PHASE.FOLLOWER_CHOICE && me === game.thiefId;
-          assert.ok(awakeHour || thiefChoosing,
-            `${c.label} got an extra view in ${cur.name} ${cur.hour ?? ''} while asleep`);
+        for (const [r, views] of viewsByRound(c).entries()) {
+          const game = rounds[r];
+          for (let i = 1; i < views.length; i++) {
+            const prev = views[i - 1].phase;
+            const cur = views[i].phase;
+            if (!NIGHT.has(cur.name)) continue;
+            const sameStep = prev.name === cur.name && prev.hour === cur.hour;
+            if (!sameStep) continue;
+            // A second view within one night step: only allowed if this player is active then.
+            const awakeHour = cur.name === PHASE.HOUR && game.dice[me] === cur.hour;
+            const thiefChoosing = cur.name === PHASE.FOLLOWER_CHOICE && me === game.thiefId;
+            assert.ok(awakeHour || thiefChoosing,
+              `${c.label} got an extra view in ${cur.name} ${cur.hour ?? ''} while asleep`);
+          }
         }
       }
     }
   });
 
   it('nobody but the Thief and the Follower hears who the Follower is before the results', () => {
-    for (const { clients, game } of games) {
+    for (const { clients, rounds } of games) {
       for (const c of clients) {
-        if (c.id === game.thiefId || c.id === game.followerId) continue;
-        for (const m of c.messages) {
-          if (m.t !== 'view' || m.phase.name === PHASE.RESULTS) continue;
-          assert.equal(m.follower, undefined, c.label);
+        for (const [r, views] of viewsByRound(c).entries()) {
+          const game = rounds[r];
+          if (c.id === game.thiefId || c.id === game.followerId) continue;
+          for (const m of views) {
+            if (m.phase.name === PHASE.RESULTS) continue;
+            assert.equal(m.follower, undefined, c.label);
+          }
         }
       }
     }

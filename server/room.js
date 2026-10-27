@@ -297,8 +297,25 @@ export class Room {
         this.broadcastViews();
         return null;
 
+      case 'endDiscussion':
+        if (!isHost) return 'NOT_HOST';
+        if (this.phase !== PHASE.DISCUSSION) return 'WRONG_PHASE';
+        this.nextPhase();
+        return null;
+
+      case 'playAgain':
+        // Same room, same seats (bots included), new deal on the next start.
+        if (!isHost) return 'NOT_HOST';
+        if (this.phase !== PHASE.RESULTS) return 'WRONG_PHASE';
+        this.clearClock();
+        if (this.botTimer) this.timers.clearTimeout(this.botTimer);
+        this.botTimer = null;
+        this.game = null;
+        this.endsAt = null;
+        this.broadcastViews();
+        return null;
+
       default:
-        // endDiscussion and playAgain arrive with the day phase (Milestone 4).
         return 'WRONG_PHASE';
     }
   }

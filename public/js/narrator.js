@@ -31,6 +31,13 @@ export function lineFor(view) {
       return 'Time to talk. When did you wake up, and what did you see? Find the Thief!';
     case 'VOTE':
       return 'Time to vote. Who is the Cheese Thief?';
+    case 'RESULTS': {
+      const r = view.results;
+      const nameOf = (id) => view.players.find((p) => p.id === id)?.name ?? 'someone';
+      return r.thiefCaught
+        ? `The votes are in. ${nameOf(r.thiefId)} was the Cheese Thief, and got caught! The Sleepyheads win!`
+        : `The votes are in. The Cheese Thief was ${nameOf(r.thiefId)}, and got away! ${nameOf(r.thiefId)} and the Follower, ${nameOf(r.followerId)}, win!`;
+    }
     default:
       return '';
   }
