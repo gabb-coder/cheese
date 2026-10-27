@@ -121,3 +121,25 @@ These are choices for the app, not official rules.
 - Tie scenarios (after the owner decides).
 - Same die value for all players, and for no player on some hours.
 - Every player count from 4 to 8.
+
+---
+
+## 11. Owner decisions for this app (2026-10-27)
+These settle the [UNKNOWN] items above for the digital version. PLAN.md §2 has the full
+table; `game/rules.js` implements exactly this.
+1. **Shared hour without the Thief:** the awake players see each other and the cheese:
+   still on the table if it hasn't been stolen yet, gone if it has. Nobody can peek.
+2. **Thief awake alone:** no extra action; the Thief only steals.
+3. **Followers (all player counts, 4-8):** nobody becomes a Follower during the hours,
+   not even a lone Sleepyhead who woke with the Thief. After hour 6 the Thief must choose
+   exactly one Follower from **any** Sleepyhead (random if the Thief runs out of time).
+   Then a short silent meet-up: the Follower is told they are the Follower and who the
+   Thief is, and the two see each other. Nobody else learns who the Follower is until
+   the results.
+4. Sleepyheads awake at the Thief's hour still see the Thief take the cheese.
+5. **Ties:** if the Thief is tied for the most votes, the Thief is caught and the
+   Sleepyheads (not the Follower) win. [INFERRED, confirm] If nobody votes at all, the
+   Thief has received no votes, so is not caught.
+6. **Votes:** no self-votes; anyone else, the Follower included, can be voted for.
+7. **Fall Guy:** not in v1.
+8. **Discussion:** host-configurable timer, 3 minutes by default, host can end it early.

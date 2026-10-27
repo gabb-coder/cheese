@@ -1,0 +1,15 @@
+{
+  "name": "cheese-thief",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Digital Cheese Thief for playing with friends, one phone each.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js"
+  }
+}

@@ -1,12 +1,11 @@
 # Cheese Thief (digital): Plan
 
-Status: **draft, waiting for owner approval.** No code is written until this is approved
-and the blocking questions in §2 are answered (or explicitly deferred).
+Status: **approved by the owner** (with the rule decisions in §2), 2026-10-27.
 
-Source of truth for rules: [RULES.md](RULES.md). Anything that file tags [UNKNOWN] is
-listed in §2 with a proposed placeholder. Placeholders live in one place in code
-(`RULE_OPTIONS` in `game/rules.js`), are marked `// PLACEHOLDER (RULES.md §x)`, and have
-tests named `placeholder: ...` so they are easy to find and change.
+Source of truth for rules: [RULES.md](RULES.md), plus the owner's decisions recorded in
+§2 for everything RULES.md tagged [UNKNOWN]. All rule switches live in one place in code
+(`RULE_OPTIONS` in `game/rules.js`), each commented with the RULES.md section or the
+owner decision it comes from.
 
 ---
 
@@ -29,33 +28,42 @@ leak tests inspect, with no extra framing and no long-polling fallback to secure
 
 ---
 
-## 2. Open rule questions (need owner answers)
+## 2. Rule decisions (owner, 2026-10-27)
 
-Each item gives the RULES.md reference, my proposed placeholder, and whether it blocks.
+These settle every [UNKNOWN] in RULES.md. "Owner" means the project owner decided it for
+this app.
 
-| # | Question (RULES.md) | Proposed placeholder | Blocks |
+| # | Question (RULES.md) | Decision | Source |
 |---|---|---|---|
-| Q1 | Follower rules for 6-8 players after hour 6 (§5, §9.1) | None. **The lobby caps games at 5 players until this is answered.** The night state machine already has an empty `AFTER_HOUR_6` step to fill in. | 6-8 player games only |
-| Q2 | What a Sleepyhead sees when several share an hour with no Thief (§4) | They see who else is awake and whether the cheese is on the table. Nobody can peek. | No |
-| Q3 | Does a Thief awake alone get any extra action, e.g. a peek? (§4) | No. The Thief only steals. | No |
-| Q4 | Is the Follower told they are a Follower? Does the Thief learn who is awake with them? (§5) | Yes to both. Everyone awake at the Thief's hour sees the Thief take the cheese and sees who was chosen as Follower. The chosen player's screen says "You are the Thief's Follower". | No |
-| Q5 | Must the Thief take a Follower if nobody shares the hour? (§5) | No. With 4-5 players there is a Follower only if a Sleepyhead shares the Thief's hour. With one, that player is the Follower automatically. With several, the Thief must pick one; if they run out of time, the server picks at random. | No |
-| Q6 | Ties (§7) | If the Thief is tied for the most votes, the Thief counts as caught and the **Sleepyheads win**. The wording "receives the highest number of votes" is still true for a tied highest. | No (flagged) |
-| Q7 | Self-votes, and can the Thief vote for their Follower? (§7) | Self-votes are not allowed. Anyone else, the Follower included, can be voted for. | No |
-| Q8 | Fall Guy / optional roles (§5) | Not in v1. | No |
-| Q9 | Official discussion time limit (§6) | A host-configurable timer, 3 minutes by default. The host can end it early. | No |
+| Q1 | Follower rules, including 6-8 players (§5, §9.1) | **One Follower at every player count, 4-8, always chosen by the Thief after hour 6** (see Q4). No separate 6-8 rule. | Owner |
+| Q2 | What players see when several share an hour without the Thief (§4) | They see each other (who is awake) and the cheese: still there if not yet stolen, gone if already stolen. Nobody can peek. | Owner |
+| Q3 | Does a Thief awake alone get an extra action? (§4) | No. The Thief only steals. | Owner (approved plan) |
+| Q4 | When is the Follower chosen and told? (§5) | **Nobody becomes a Follower during the hours**, even if exactly one Sleepyhead woke with the Thief. After hour 6 there is a short *Follower* step: the Thief must choose **any one Sleepyhead** (not only ones who woke with them). If time runs out, the server picks at random. Then a short silent *meet-up*: the chosen Follower is told they are the Follower and who the Thief is, and both see each other on screen. Everyone else sees the same "The Thief is choosing…" screen throughout. | Owner |
+| Q5 | Must the Thief take a Follower? (§5) | Yes, always exactly one (with 4+ players there are always at least 3 Sleepyheads). | Owner |
+| Q6 | Ties (§7) | If the Thief is tied for the most votes, the Thief counts as caught and the **Sleepyheads win**. | Owner (approved plan) |
+| Q7 | Self-votes, and can the Thief vote for their Follower? (§7) | No self-votes. Anyone else, the Follower included, can be voted for. | Owner (approved plan) |
+| Q8 | Fall Guy / optional roles (§5) | Not in v1. | Owner (approved plan) |
+| Q9 | Discussion time limit (§6) | A host-configurable timer, 3 minutes by default. The host can end it early. | Owner (approved plan) |
 
-App decisions I'm proposing (not rules questions, but please confirm):
+What players still see at the Thief's hour: every Sleepyhead awake then sees the Thief
+take the cheese (they learn who the Thief is), and the Thief sees who is awake with them.
+That is just being awake at the table (RULES.md §4). Who the Follower is stays secret
+from everyone except the Thief and the Follower until the results.
+
+Winners: if the Thief has the most votes (ties included, Q6), every Sleepyhead except the
+Follower wins. Otherwise the Thief and the Follower win (RULES.md §7).
+
+App decisions (approved):
 
 | # | Decision | Proposal |
 |---|---|---|
 | D1 | Is the steal automatic? | On their hour the Thief taps "Take the cheese". If they don't, it happens automatically 5 s before the hour ends. Stealing is mandatory (RULES.md §4 "steals on the Thief's own hour"). |
 | D2 | Peek | A lone Sleepyhead may peek at **one** other player's die and sees only the number, never the role. It is optional. |
-| D3 | Hour timing | Every hour lasts exactly the same time (default 15 s), whether or not anyone is awake and whatever they do. It never ends early (no timing side channel). |
-| D4 | Results screen | Reveals every role, every die, the Follower (if any), every vote, and the winners. This mirrors flipping cards and pointing in the physical game. |
+| D3 | Timing | Every hour, the Follower step and the meet-up last exactly their set time, whatever anyone does. None of them ends early (no timing side channel). Defaults: hour 15 s, Follower choice 20 s, meet-up 8 s. |
+| D4 | Results screen | Reveals every role, every die, the Follower, every vote, and the winners. This mirrors flipping cards and pointing in the physical game. |
 | D5 | Missing votes | A player who hasn't voted when the vote timer (default 45 s) runs out abstains. |
-| D6 | Player disconnected during their hour | The game clock doesn't wait. A missed peek is skipped. A missed steal or follower choice happens automatically, per D1 and Q5. |
-| D7 | Cues that others could hear (see §8) | Narration and chimes are identical on every phone. There is **no** personal wake sound or vibration, because a buzzing phone on a table would reveal who is awake. Every phone gets the same short vibration at each hour change, which tells you nothing about anyone. |
+| D6 | Player disconnected during their hour | The game clock doesn't wait. A missed peek is skipped. A missed steal or Follower choice happens automatically (D1, Q4). |
+| D7 | Cues that others could hear (see §8) | Narration and chimes are identical on every phone. There is **no** personal wake sound or vibration, because a buzzing phone on a table would reveal who is awake. Every phone gets the same short vibration at each step change, which tells you nothing about anyone. |
 | D8 | Narrating phone | Speech plays on the host's phone by default (several phones talking slightly out of sync sounds bad). Any player can toggle "Narrate on this phone". Every phone always shows the narration text. |
 
 ---
@@ -94,7 +102,9 @@ App decisions I'm proposing (not rules questions, but please confirm):
 LOBBY ──start (host, 4..maxPlayers)──▶ ROLE_REVEAL
 ROLE_REVEAL ──all confirmed or 45 s──▶ NIGHT_INTRO (8 s, "everyone close your eyes")
 NIGHT_INTRO ─▶ HOUR(1) ─▶ HOUR(2) ─▶ … ─▶ HOUR(6)      each exactly hourMs (default 15 s)
-HOUR(6) ─▶ AFTER_HOUR_6   (6-8 player follower step, Q1; skipped/disabled until answered)
+HOUR(6) ─▶ FOLLOWER_CHOICE (20 s: Thief picks any Sleepyhead; random on timeout)
+        ─▶ FOLLOWER_MEET   (8 s: Thief and Follower see each other; others see the same
+                            "The Thief is choosing…" screen in both steps)
         ─▶ DAWN (5 s, "everyone wake up")
 DAWN ─▶ DISCUSSION (default 180 s; host may end early) ─▶ VOTE (all voted or 45 s)
 VOTE ─▶ RESULTS ──play again (host)──▶ LOBBY (same room, same seats, new deal)
@@ -104,15 +114,16 @@ Inside `HOUR(h)`, the server works out `awake = players whose die == h`:
 
 - **Thief in `awake`**: the Thief's screen offers "Take the cheese" (D1). Once the
   cheese is taken, every other awake player's screen shows it being taken by the Thief.
-  Then the Follower is resolved (Q4/Q5): automatic if one Sleepyhead is awake, the
-  Thief's choice if several, none if the Thief is alone.
+  No Follower is chosen here (Q4).
 - **`awake` is exactly one Sleepyhead**: they may peek at one die (D2).
 - **Otherwise**: the awake players see each other and the cheese status (Q2).
 - **Nobody awake**: the hour still runs its full length.
 - The hour ends on the timer only, never early (D3).
 
 Phase changes are sent to everyone, because everyone hears the narration anyway. What
-happens *inside* an hour is sent only to the players awake in that hour.
+happens *inside* an hour is sent only to the players awake in that hour. During
+`FOLLOWER_CHOICE` only the Thief gets updates. At the start of `FOLLOWER_MEET` the
+Thief and the Follower get theirs; nobody else learns whether or when a choice was made.
 
 ---
 
@@ -136,7 +147,7 @@ ignored.
 | `start` | – | host, lobby |
 | `revealed` | – | role reveal ("I've memorized it") |
 | `steal` | – | Thief, own hour |
-| `chooseFollower` | `playerId` | Thief, own hour, several awake |
+| `chooseFollower` | `playerId` | Thief, `FOLLOWER_CHOICE` step, any Sleepyhead |
 | `peek` | `playerId` | lone Sleepyhead, own hour |
 | `endDiscussion` | – | host |
 | `vote` | `playerId` | vote phase; one vote, final once sent |
@@ -165,12 +176,16 @@ ignored.
   me: { id, role?, die? },                       // own secrets only, after the deal
   night: {                                       // only things THIS player saw
     awakeNow: bool,
-    now?:  { companions: [ids], cheeseOnTable, thiefId?, followerId?,
-             canSteal?, canPeek?, followerOptions?: [ids], peek?: { playerId, die } },
-    notes: [{ hour, companions, cheeseOnTable, thiefId?, followerId?, peek? }]
+    now?:  { companions: [ids], cheeseOnTable, thiefId?,
+             canSteal?, canPeek?, peek?: { playerId, die } },
+    notes: [{ hour, companions, cheeseOnTable, thiefId?, peek? }]
+  },
+  follower?: {                                   // absent for everyone else
+    options?: [ids], chosenId?,                  // Thief, from FOLLOWER_CHOICE
+    isYou?: true, thiefId?                       // the Follower, from FOLLOWER_MEET
   },
   vote?:    { myVote?, votedIds },               // others' choices hidden until RESULTS
-  results?: { roles, dice, followerIds, votes, tally, thiefCaught, winners }
+  results?: { roles, dice, followerId, votes, tally, thiefCaught, winners }
 }
 ```
 
@@ -197,8 +212,8 @@ This is enforced in four layers:
    - other players' dice: only via a peek (that one die), or implied by sharing an
      hour (they appear in `companions`, not as a die value)
    - Thief's identity: only if awake at the Thief's hour, or in RESULTS
-   - Follower identity: only the Thief, the Follower and others awake at that hour, or in
-     RESULTS
+   - Follower identity: only the Thief (from their choice) and the Follower (from
+     `FOLLOWER_MEET`), or anyone in RESULTS
    - other players' votes: only in RESULTS
    - other seats' tokens: never
 4. **Indistinguishability tests.**
@@ -238,7 +253,7 @@ just `viewFor`.
   works). Names are 1-16 characters, trimmed, compared case-insensitively for
   duplicates (`NAME_TAKEN`), and always rendered with `textContent` (no HTML injection).
   The host can kick players in the lobby; a kicked seat's token is revoked. The room is
-  capped at 8 players (5 until Q1 is answered).
+  capped at 8 players.
 - **Expiry:** each room keeps `lastActivity`, updated on any intent. A sweep every
   60 s deletes rooms idle for more than 30 minutes, sending `roomClosed {expired}` to
   any open sockets first.
@@ -297,7 +312,7 @@ package.json          engines node>=20; scripts: start, dev (node --watch), test
 render.yaml           Render Blueprint (M6)
 RULES.md  PLAN.md  DEPLOY.md  README.md
 game/
-  rules.js            pure rules + viewFor + RULE_OPTIONS (placeholders flagged)
+  rules.js            pure rules + viewFor + RULE_OPTIONS
   rng.js              seedable RNG (mulberry32) + crypto RNG for production
 server/
   index.js            Express, /healthz, static, ws upgrade, heartbeat, PORT/0.0.0.0
@@ -350,8 +365,7 @@ Each milestone ends with `npm test` green, a commit and push, and a short "how t
 it" note.
 
 1. **`game/rules.js` + unit tests.** Deal, dice, the hour engine, visibility per hour
-   and per player count, steal, Follower resolution, peek, vote tally and ties (Q6
-   placeholder flagged), win conditions, and `viewFor`. Try it: `npm test`.
+   and per player count, steal, Follower resolution, peek, vote tally and ties (Q6), win conditions, and `viewFor`. Try it: `npm test`.
 2. **Server + protocol + lobby.** Express/ws, `/healthz`, create/join/kick/duplicate
    names/late joiners, tokens and seat reclaim, bots, and a minimal Home/Lobby UI. Try
    it: `npm run dev`, open two tabs (or a phone on the same Wi-Fi), add bots.
@@ -366,6 +380,3 @@ it" note.
 6. **Deploy.** `render.yaml` (runtime node, `npm install`, `npm start`,
    healthCheckPath `/healthz`, free plan) and DEPLOY.md (push to GitHub, create the
    service from the Blueprint, check `/healthz`, test with two phones).
-
-Q1 (6-8 player followers) can land in any milestone once answered: it is one extra
-state-machine step plus its tests, and the 5-player cap comes off.
