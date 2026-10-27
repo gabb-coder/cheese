@@ -1,6 +1,6 @@
 // Day: discussion, the secret vote, and the results with "play again".
 
-import { h } from '../dom.js';
+import { h, calm } from '../dom.js';
 import { countdown, nightNotes, holdCard, nameOf, listNames, dieFace, avatar, art } from '../components.js';
 
 export function key(view) {
@@ -11,9 +11,11 @@ export function key(view) {
 }
 
 let progress = null;
+let celebrated = false; // confetti once per results screen, not on every redraw
 
 export function render(ctx) {
   const { name } = ctx.state.view.phase;
+  if (name !== 'RESULTS') celebrated = false;
   if (name === 'VOTE') return vote(ctx);
   if (name === 'RESULTS') return results(ctx);
   return discussion(ctx);
@@ -24,6 +26,53 @@ export function update({ state }) {
   if (progress && view.vote) {
     progress.textContent = `${view.vote.votedIds.length} of ${view.players.length} have voted`;
   }
+}
+
+// Cheese crumbs rain down on the winners' phones.
+function cheeseConfetti() {
+  const layer = h('div', { class: 'confetti', 'aria-hidden': 'true' });
+  for (let i = 0; i < 40; i++) {
+    const bit = h('i', { class: `b${i % 3}` });
+    const vars = {
+      '--x': `${Math.random() * 100}vw`,
+      '--size': `${8 + Math.random() * 8}px`,
+      '--drift': `${(Math.random() - 0.5) * 120}px`,
+      '--spin': `${(Math.random() - 0.5) * 900}deg`,
+      '--dur': `${2.4 + Math.random() * 1.8}s`,
+      '--delay': `${Math.random() * 0.9}s`,
+    };
+    for (const [k, v] of Object.entries(vars)) bit.style.setProperty(k, v);
+    layer.append(bit);
+  }
+  document.body.append(layer);
+  setTimeout(() => layer.remove(), 5500);
+}
+
+// The vote bars grow one mouse at a time, most votes last, once the tally is on screen.
+function countUp(list) {
+  const rows = [...list.children];
+  const show = (li, animate) => {
+    const bar = li.querySelector('.bar > i');
+    const out = li.querySelector('.count');
+    const n = Number(out.dataset.n);
+    bar.style.width = bar.dataset.w;
+    li.classList.add('shown');
+    if (!animate) {
+      out.textContent = String(n);
+      return;
+    }
+    for (let k = 1; k <= n; k++) setTimeout(() => { out.textContent = String(k); }, (k / n) * 650);
+  };
+  if (calm() || !('IntersectionObserver' in window)) {
+    for (const li of rows) show(li, false);
+    return;
+  }
+  const seen = new IntersectionObserver((entries) => {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    seen.disconnect();
+    rows.reverse().forEach((li, i) => setTimeout(() => show(li, true), 250 + i * 450));
+  }, { threshold: 0.35 });
+  seen.observe(list);
 }
 
 const playerOf = (view, id) => view.players.find((p) => p.id === id) ?? { id, name: 'someone' };
@@ -112,16 +161,20 @@ function results({ state, actions }) {
   const abstained = view.players.filter((p) => !(p.id in r.votes));
 
   const tallyRow = ({ p, count }) => {
-    const bar = h('i');
-    bar.style.width = `${(count / most) * 100}%`;
+    const bar = h('i', { 'data-w': `${(count / most) * 100}%` });
     return h('li', { class: r.leaders.includes(p.id) ? 'leader' : '' },
       avatar(p, 34),
       h('div', { class: 'bar-wrap' },
         h('span', { class: 'n' }, p.name, p.id === r.thiefId ? '  🧀' : ''),
         h('div', { class: 'bar' }, bar),
         voters[p.id] ? h('span', { class: 'from' }, `from ${listNames(view, voters[p.id])}`) : null),
-      h('span', { class: 'count' }, String(count)));
+      h('span', { class: 'count', 'data-n': count }, '0'));
   };
+
+  const tally = h('ul', { class: 'tally' }, rows.map(tallyRow));
+  countUp(tally);
+  if (iWon && !celebrated && !calm()) setTimeout(cheeseConfetti, 900);
+  celebrated = true;
 
   const roleOf = (p) => (p.id === r.thiefId ? 'Thief' : p.id === r.followerId ? 'Follower' : 'Sleepyhead');
 
@@ -142,7 +195,7 @@ function results({ state, actions }) {
     ),
     h('div', { class: 'card' },
       h('h3', {}, 'The votes'),
-      h('ul', { class: 'tally' }, rows.map(tallyRow)),
+      tally,
       abstained.length ? h('p', { class: 'muted small' }, `Didn't vote: ${listNames(view, abstained.map((p) => p.id))}`) : null,
     ),
     h('div', { class: 'card' },

@@ -2,7 +2,7 @@
 // quiet spell can take up to a minute while the server wakes, so say so.
 
 import { h } from '../dom.js';
-import { art } from '../components.js';
+import { peekingMouse } from '../components.js';
 
 let hint = null;
 let retry = null;
@@ -12,7 +12,7 @@ export function render(ctx) {
   retry = h('button', { class: 'btn-secondary btn-small', hidden: true, onClick: () => ctx.actions.reconnect() }, 'Try again now');
   update(ctx);
   return h('section', { class: 'screen center' },
-    art('mousehole', 'pop-in', ''),
+    peekingMouse('pop-in'),
     h('h2', {}, h('span', { class: 'dots' }, 'Waking up the mouse hole')),
     hint,
     retry,

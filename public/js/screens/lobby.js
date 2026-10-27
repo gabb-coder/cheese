@@ -1,6 +1,6 @@
 // Lobby: room code and share link, who's here, host controls (kick, bots, start).
 
-import { h, toast } from '../dom.js';
+import { h, toast, calm } from '../dom.js';
 import { avatar } from '../components.js';
 
 const MIN_PLAYERS = 4;
@@ -57,6 +57,35 @@ function settingsCard(view, isHost, actions) {
   return details;
 }
 
+// The room code flips into place like a departure board the first time it's shown.
+const LETTERS = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+let flippedCode = null;
+
+function roomCode(code) {
+  const flaps = code.split('').map((ch) => h('span', { class: 'flap', 'aria-hidden': 'true' }, ch));
+  const el = h('div', { class: 'room-code', role: 'img', 'aria-label': `Room code ${code.split('').join(' ')}`, 'data-code': code }, flaps);
+  if (code !== flippedCode && !calm()) {
+    flaps.forEach((flap, i) => {
+      const stopAt = Date.now() + 450 + i * 260;
+      const tick = () => {
+        const done = Date.now() >= stopAt;
+        flap.textContent = done ? code[i] : LETTERS[Math.floor(Math.random() * LETTERS.length)];
+        flap.animate(done
+          ? [{ transform: 'rotateX(-80deg)' }, { transform: 'rotateX(20deg)' }, { transform: 'none' }]
+          : [{ transform: 'rotateX(-70deg)' }, { transform: 'none' }], { duration: done ? 340 : 60, easing: 'ease-out' });
+        if (!done) setTimeout(tick, 100);
+      };
+      setTimeout(tick, i * 35);
+    });
+  }
+  flippedCode = code;
+  return el;
+}
+
+// Who was in the lobby last time it was drawn, so arrivals bounce in, leavers shrink
+// away and a crown that changes heads wiggles.
+let shown = { code: null, players: new Map(), hostId: null };
+
 export function render({ state, actions }) {
   const view = state.view;
   const meId = view.me.id;
@@ -65,8 +94,17 @@ export function render({ state, actions }) {
   const host = players.find((p) => p.isHost);
   const count = players.length;
 
-  const seat = (p) => h('li', { class: `seat${p.connected ? '' : ' offline'}${p.id === meId ? ' me' : ''}` },
-    avatar(p, 44),
+  const prev = shown.code === view.room.code ? shown : null;
+  shown = { code: view.room.code, players: new Map(players.map((p) => [p.id, p])), hostId: view.room.hostId };
+  const crownMoved = prev && prev.hostId !== view.room.hostId;
+  const hostAvatar = (p) => {
+    const a = avatar(p, 44);
+    if (crownMoved && p.isHost) a.classList.add('crown-new');
+    return a;
+  };
+
+  const seatFor = (p) => h('li', { class: `seat${p.connected ? '' : ' offline'}${p.id === meId ? ' me' : ''}` },
+    hostAvatar(p),
     h('div', { class: 'grow' },
       h('div', { class: 'name' }, p.name),
       h('div', { class: 'sub' }, [p.id === meId ? 'you' : null, p.isHost ? 'host' : null, p.isBot ? 'bot' : null,
@@ -81,6 +119,23 @@ export function render({ state, actions }) {
         },
       }, '✕')
       : null);
+
+  const seat = (p, i) => {
+    const li = seatFor(p);
+    if (!prev) {
+      li.classList.add('intro');
+      li.style.setProperty('--i', i);
+    } else if (!prev.players.has(p.id)) {
+      li.classList.add('arrive');
+    }
+    return li;
+  };
+  const leavers = prev && !calm() ? [...prev.players.values()].filter((p) => !shown.players.has(p.id)) : [];
+  const ghost = (p) => {
+    const li = h('li', { class: 'seat leaving', 'aria-hidden': 'true' }, avatar(p, 44), h('div', { class: 'grow' }, h('div', { class: 'name' }, p.name)));
+    setTimeout(() => li.remove(), 400);
+    return li;
+  };
 
   // Empty chairs up to the 4 needed to start, then one "room for more" chair.
   const empty = [];
@@ -104,13 +159,13 @@ export function render({ state, actions }) {
     h('div', { class: 'lobby-head' },
       h('div', { class: 'ticket' },
         h('div', { class: 'label' }, 'ROOM CODE'),
-        h('div', { class: 'room-code', 'aria-label': `Room code ${view.room.code.split('').join(' ')}` }, view.room.code),
+        roomCode(view.room.code),
       ),
       h('button', { class: 'btn-secondary btn-small', onClick: () => shareLink(view.room.code) }, '🔗  Invite friends'),
     ),
     h('div', { class: 'card' },
       h('div', { class: 'card-title' }, h('h2', { class: 'grow' }, 'Mice in the house'), h('span', { class: 'chip' }, `${count} / ${MAX_PLAYERS}`)),
-      h('ul', { class: 'seats' }, players.map(seat), empty),
+      h('ul', { class: 'seats' }, players.map(seat), leavers.map(ghost), empty),
     ),
     settingsCard(view, isHost, actions),
     actionsBar,

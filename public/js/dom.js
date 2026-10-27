@@ -29,3 +29,32 @@ export function toast(text, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.hidden = true; }, ms);
 }
+
+// True when the player has asked their phone for less motion.
+export const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Replace what `parent` shows with `child`. With `animate`, the new screen slides in over
+// the old one: a View Transition where the browser has them, else an entrance animation.
+const incoming = new WeakMap();
+export function swap(parent, child, animate = false) {
+  if (!animate || calm() || document.hidden) {
+    incoming.delete(parent);
+    parent.replaceChildren(child);
+  } else if (document.startViewTransition) {
+    // The swap happens a frame later; a newer swap before then wins.
+    const waiting = incoming.has(parent);
+    incoming.set(parent, child);
+    if (!waiting) {
+      const transition = document.startViewTransition(() => {
+        const next = incoming.get(parent);
+        incoming.delete(parent);
+        if (next) parent.replaceChildren(next);
+      });
+      // A skipped transition (say the phone rotated) still swaps; it just doesn't animate.
+      transition.ready.catch(() => {});
+    }
+  } else {
+    child.classList.add('enter');
+    parent.replaceChildren(child);
+  }
+}

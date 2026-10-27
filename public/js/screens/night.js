@@ -3,8 +3,8 @@
 // Asleep screens are near-black and identical for everyone asleep. Awake screens show only
 // what this player's view contains: who else is awake, the cheese, and their actions.
 
-import { h } from '../dom.js';
-import { countdown, hourTrack, holdCard, dieFace, nameOf, listNames, art, avatar } from '../components.js';
+import { h, calm } from '../dom.js';
+import { countdown, hourTrack, holdCard, dieFace, nameOf, listNames, art, avatar, sunrise } from '../components.js';
 
 export const key = (view) => JSON.stringify([view.phase.hour ?? null, view.night, view.follower ?? null]);
 
@@ -31,7 +31,7 @@ export function render({ state, actions }) {
 
 function asleep(view, title, subtitle) {
   return h('section', { class: 'screen-inner asleep' },
-    art('moon', 'moon'),
+    h('div', { class: 'moon-wrap' }, art('moon', 'moon')),
     h('h2', {}, title),
     h('p', {}, subtitle),
     hourTrack(view.phase.hour),
@@ -39,10 +39,37 @@ function asleep(view, title, subtitle) {
   );
 }
 
-function scene(seen, iAmThief) {
+// What this phone showed last while awake, so the steal can be animated when it happens
+// in front of this player (it is in their own view either way).
+let lastSeen = null;
+
+const CRUMBS = [[-60, 30], [-34, -36], [-8, 44], [26, -30], [52, 26], [70, -8]];
+
+function plateWithCheese(snatched) {
+  return h('div', { class: 'plate-stack' },
+    art('plate'),
+    art('cheese', 'on-plate'),
+    snatched
+      ? CRUMBS.map(([dx, dy]) => {
+        const crumb = h('i', { class: 'crumb' });
+        crumb.style.setProperty('--dx', `${dx}px`);
+        crumb.style.setProperty('--dy', `${dy}px`);
+        return crumb;
+      })
+      : null);
+}
+
+function scene(view, seen, iAmThief) {
+  const hour = view.phase.hour;
+  const snatched = lastSeen?.hour === hour && lastSeen.cheese && !seen.cheeseOnTable && !calm();
+  lastSeen = { hour, cheese: seen.cheeseOnTable };
+  if (snatched) {
+    return h('div', { class: 'scene snatch' }, plateWithCheese(true),
+      h('p', {}, iAmThief ? 'You took the cheese!' : 'The cheese is gone!'));
+  }
   if (iAmThief && !seen.cheeseOnTable) return h('div', { class: 'scene pop-in' }, art('role-thief'), h('p', {}, 'You took the cheese!'));
   return seen.cheeseOnTable
-    ? h('div', { class: 'scene' }, art('cheese'), h('p', {}, 'The cheese is on the table.'))
+    ? h('div', { class: 'scene' }, plateWithCheese(false), h('p', {}, 'The cheese is on the table.'))
     : h('div', { class: 'scene' }, art('plate'), h('p', {}, 'The cheese is gone!'));
 }
 
@@ -61,7 +88,7 @@ function awake(view, actions) {
       ? [h('div', { class: 'avatars' }, seen.companions.map((id) => avatar(playerOf(view, id), 40))),
         h('p', {}, `Also awake: ${listNames(view, seen.companions)}`)]
       : h('p', {}, 'Nobody else is awake.')));
-  parts.push(scene(seen, iAmThief));
+  parts.push(scene(view, seen, iAmThief));
 
   if (seen.canSteal) {
     parts.push(h('button', { class: 'btn-primary btn-block btn-big', onClick: () => actions.send({ t: 'steal' }) },
@@ -144,7 +171,7 @@ function meetAsFollower(view) {
 
 function dawn(view) {
   return h('section', { class: 'screen-inner' },
-    art('sun', 'dawn-art pop-in'),
+    sunrise('dawn-art'),
     h('h1', { class: 'title' }, 'Good morning!'),
     h('p', {}, 'Everyone, open your eyes. The cheese is gone…'),
     countdown(view.phase.endsAt),

@@ -34,6 +34,13 @@
 /* ---------------------------------------------------------------------------
    Tokens */
 
+/* Registered so the sky can fade between moods (browsers without @property just switch). */
+@property --sky-top { syntax: '<color>'; inherits: true; initial-value: #141a3f; }
+@property --sky-mid { syntax: '<color>'; inherits: true; initial-value: #262a63; }
+@property --sky-low { syntax: '<color>'; inherits: true; initial-value: #3e2f6e; }
+@property --stars { syntax: '<number>'; inherits: true; initial-value: 0.9; }
+@property --cloud-o { syntax: '<number>'; inherits: true; initial-value: 0.16; }
+
 :root {
   /* fixed brand colours */
   --ink: #2b1d14;
@@ -59,6 +66,9 @@
   --on-surface-muted: #7a6656;
   --outline: var(--ink);
   --stars: 0.9;
+  --cloud: #9d95d6;
+  --cloud-o: 0.16;
+  --urgent: #ff8a3d;
 
   --font-display: 'Fredoka', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
   --font-body: 'Nunito', ui-rounded, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -83,6 +93,8 @@ body[data-mood="night"] {
   --on-surface-muted: #9a95c4;
   --outline: #05060f;
   --stars: 0.35;
+  --cloud: #262a58;
+  --cloud-o: 0.55;
   --soft-shadow: none;
 }
 
@@ -91,6 +103,8 @@ body[data-mood="dawn"] {
   --sky-mid: #a1608d;
   --sky-low: #f2a46f;
   --stars: 0.15;
+  --cloud: #ffd3c4;
+  --cloud-o: 0.35;
 }
 
 body[data-mood="morning"] {
@@ -102,6 +116,9 @@ body[data-mood="morning"] {
   --surface: #fffaf0;
   --surface-2: #fbefd6;
   --stars: 0;
+  --cloud: #ffffff;
+  --cloud-o: 0.75;
+  --urgent: #d9531e;
   --soft-shadow: 0 14px 30px rgb(120 70 20 / 0.18);
   color-scheme: light;
 }
@@ -120,35 +137,104 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
-  transition: background-color 0.6s ease, color 0.6s ease;
+  transition: --sky-top 1.8s ease, --sky-mid 1.8s ease, --sky-low 1.8s ease, --stars 1.8s ease, --cloud-o 1.8s ease,
+    background-color 0.6s ease, color 0.6s ease;
 }
 
-/* A sky full of little stars, drawn with gradients (no images). */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: var(--stars);
-  transition: opacity 0.8s ease;
+/* ---------------------------------------------------------------------------
+   The sky behind every screen (index.html .sky): twinkling stars, drifting clouds,
+   fireflies on Home and the Lobby, and a warm glow at dawn. It follows the mood only,
+   so every phone in the same step shows exactly the same sky. */
+
+.sky { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.sky .stars { position: absolute; inset: 0; opacity: var(--stars); }
+.sky .stars > i { position: absolute; inset: 0; animation: twinkle 5s ease-in-out infinite alternate; }
+.sky .stars > i:nth-child(1) {
   background-image:
-    radial-gradient(1.6px 1.6px at 12% 8%, #fff8 50%, transparent 51%),
-    radial-gradient(1.2px 1.2px at 28% 22%, #fff7 50%, transparent 51%),
-    radial-gradient(2px 2px at 46% 6%, #fff9 50%, transparent 51%),
-    radial-gradient(1.3px 1.3px at 63% 17%, #fff7 50%, transparent 51%),
-    radial-gradient(1.8px 1.8px at 82% 9%, #fff9 50%, transparent 51%),
-    radial-gradient(1.2px 1.2px at 92% 28%, #fff6 50%, transparent 51%),
-    radial-gradient(1.5px 1.5px at 6% 36%, #fff6 50%, transparent 51%),
-    radial-gradient(1.2px 1.2px at 74% 40%, #fff5 50%, transparent 51%),
-    radial-gradient(1.6px 1.6px at 38% 46%, #fff5 50%, transparent 51%),
-    radial-gradient(1.2px 1.2px at 18% 62%, #fff4 50%, transparent 51%),
-    radial-gradient(1.4px 1.4px at 88% 66%, #fff4 50%, transparent 51%),
-    radial-gradient(1.1px 1.1px at 56% 74%, #fff3 50%, transparent 51%);
-  animation: twinkle 6s ease-in-out infinite alternate;
+    radial-gradient(1.6px 1.6px at 12% 8%, #fff9 50%, transparent 51%),
+    radial-gradient(2px 2px at 46% 6%, #fffa 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 92% 28%, #fff7 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 74% 40%, #fff6 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 18% 62%, #fff5 50%, transparent 51%),
+    radial-gradient(1.1px 1.1px at 56% 74%, #fff4 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 34% 88%, #fff4 50%, transparent 51%);
 }
-@keyframes twinkle { to { filter: brightness(1.6); } }
+.sky .stars > i:nth-child(2) {
+  animation-duration: 7s;
+  animation-delay: -3.5s;
+  background-image:
+    radial-gradient(1.2px 1.2px at 28% 22%, #fff8 50%, transparent 51%),
+    radial-gradient(1.3px 1.3px at 63% 17%, #fff8 50%, transparent 51%),
+    radial-gradient(1.8px 1.8px at 82% 9%, #fffa 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 6% 36%, #fff7 50%, transparent 51%),
+    radial-gradient(1.6px 1.6px at 38% 46%, #fff6 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 88% 66%, #fff5 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 70% 84%, #fff4 50%, transparent 51%);
+}
+@keyframes twinkle { from { opacity: 1; } to { opacity: 0.2; } }
 
-#app { position: relative; min-height: 100dvh; }
+/* A few bigger four-point sparkles that glint in turn. */
+.sky .sparkle {
+  position: absolute; width: 14px; height: 14px; background: #fff3cf;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  transform: scale(0); animation: glint 9s ease-in-out infinite;
+}
+.sky .sparkle:nth-child(3) { top: 11%; left: 22%; }
+.sky .sparkle:nth-child(4) { top: 6%; left: 71%; animation-delay: -3s; width: 10px; height: 10px; }
+.sky .sparkle:nth-child(5) { top: 31%; left: 88%; animation-delay: -6s; }
+.sky .sparkle:nth-child(6) { top: 52%; left: 9%; animation-delay: -4.5s; width: 10px; height: 10px; }
+@keyframes glint { 0%, 70%, 100% { transform: scale(0) rotate(0); } 80% { transform: scale(1) rotate(45deg); } 90% { transform: scale(0.3) rotate(90deg); } }
+
+/* Clouds: a pill with two puffs, drifting slowly left to right. */
+.sky .cloud {
+  position: absolute; left: 0; width: 150px; height: 40px; border-radius: 999px;
+  background: var(--cloud); opacity: var(--cloud-o);
+  animation: drift 150s linear infinite;
+  transition: background-color 1.8s ease;
+}
+.sky .cloud::before, .sky .cloud::after { content: ""; position: absolute; border-radius: 50%; background: inherit; }
+.sky .cloud::before { width: 62px; height: 62px; left: 26px; top: -30px; }
+.sky .cloud::after { width: 46px; height: 46px; left: 78px; top: -19px; }
+.sky .cloud.c1 { top: 16%; animation-delay: -40s; }
+.sky .cloud.c2 { top: 44%; animation-duration: 210s; animation-delay: -150s; scale: 0.7; }
+.sky .cloud.c3 { top: 78%; animation-duration: 180s; animation-delay: -95s; scale: 1.2; }
+@keyframes drift { from { transform: translateX(-240px); } to { transform: translateX(calc(100vw + 60px)); } }
+
+/* Fireflies: only on Home and in the Lobby. */
+.sky .fireflies { position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s ease; }
+body[data-screen="home"] .sky .fireflies, body[data-screen="lobby"] .sky .fireflies { opacity: 1; }
+.sky .fireflies > i {
+  position: absolute; width: 6px; height: 6px; border-radius: 50%;
+  background: #ffe28a; box-shadow: 0 0 8px 3px rgb(255 210 90 / 0.55);
+  animation: fly 14s ease-in-out infinite, glow 3s ease-in-out infinite alternate;
+  animation-play-state: paused;
+}
+body[data-screen="home"] .sky .fireflies > i, body[data-screen="lobby"] .sky .fireflies > i { animation-play-state: running; }
+.sky .fireflies > i:nth-child(1) { left: 8%; top: 70%; }
+.sky .fireflies > i:nth-child(2) { left: 84%; top: 58%; animation-duration: 17s, 2.4s; animation-delay: -5s, -1s; }
+.sky .fireflies > i:nth-child(3) { left: 22%; top: 34%; animation-duration: 19s, 3.6s; animation-delay: -9s, -2s; }
+.sky .fireflies > i:nth-child(4) { left: 66%; top: 82%; animation-duration: 15s, 2.8s; animation-delay: -2s, -0.5s; }
+.sky .fireflies > i:nth-child(5) { left: 92%; top: 22%; animation-duration: 21s, 3.2s; animation-delay: -12s, -1.5s; }
+.sky .fireflies > i:nth-child(6) { left: 44%; top: 90%; animation-duration: 16s, 2.2s; animation-delay: -7s, -0.8s; }
+.sky .fireflies > i:nth-child(7) { left: 4%; top: 18%; animation-duration: 18s, 3s; animation-delay: -3s, -2.2s; }
+.sky .fireflies > i:nth-child(8) { left: 56%; top: 48%; animation-duration: 20s, 2.6s; animation-delay: -14s, -1.2s; }
+@keyframes fly {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(36px, -28px); }
+  50% { transform: translate(-14px, -52px); }
+  75% { transform: translate(-40px, -16px); }
+}
+@keyframes glow { from { opacity: 0.15; } to { opacity: 1; } }
+
+/* Dawn: a warm glow rises from the bottom of the screen. */
+.sky::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 60%;
+  background: radial-gradient(ellipse 80% 100% at 50% 100%, rgb(255 196 120 / 0.6), transparent 70%);
+  opacity: 0; transform: translateY(20%); transition: opacity 2.4s ease, transform 2.4s ease;
+}
+body[data-mood="dawn"] .sky::after { opacity: 1; transform: none; }
+
+#app { position: relative; z-index: 1; min-height: 100dvh; }
 
 h1, h2, h3 { font-family: var(--font-display); font-weight: 600; margin: 0; line-height: 1.1; letter-spacing: 0.005em; }
 h1 { font-size: 2rem; }
@@ -257,9 +343,14 @@ button {
   color: var(--ink);
   background: var(--cream);
   box-shadow: var(--lift);
-  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+  /* Springs back with a little overshoot after a squash (see :active). */
+  transition: transform 0.45s cubic-bezier(.25,1.9,.5,1), box-shadow 0.12s ease, filter 0.15s ease;
 }
-button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 var(--outline); }
+button:active:not(:disabled) {
+  transform: translateY(3px) scale(1.02, 0.93);
+  box-shadow: 0 2px 0 var(--outline);
+  transition-duration: 0.07s;
+}
 button:disabled {
   cursor: default;
   background: color-mix(in srgb, var(--surface) 12%, transparent);
@@ -323,10 +414,19 @@ body[data-mood="morning"] .error-text { color: var(--tomato); }
 }
 .ticket .label { color: #6b4a10; }
 .room-code {
-  font: 700 3rem/1 var(--font-display);
-  letter-spacing: 0.32em;
-  padding-left: 0.32em;
-  margin: 4px 0 2px;
+  display: flex; justify-content: center; gap: 8px;
+  font: 700 2.6rem/1 var(--font-display);
+  margin: 8px 0 4px;
+  perspective: 300px;
+}
+/* Each letter sits on its own flap, split across the middle like a departure board. */
+.room-code .flap {
+  position: relative; width: 1.2em; padding: 0.14em 0 0.1em; text-align: center;
+  background: var(--cream); border: 3px solid var(--ink); border-radius: 12px; box-shadow: 0 3px 0 var(--ink);
+}
+.room-code .flap::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px;
+  background: rgb(43 29 20 / 0.2);
 }
 .lobby-head { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 
@@ -345,6 +445,11 @@ body[data-mood="morning"] .error-text { color: var(--tomato); }
 .seat.offline { opacity: 0.5; }
 .seat.empty { justify-content: center; border-style: dashed; background: transparent; color: var(--on-surface-muted); font: 600 0.9rem var(--font-display); }
 .seat.me { border-color: var(--cheddar-deep); box-shadow: inset 0 0 0 2px var(--cheddar); }
+.seat.arrive { animation: arrive 0.6s cubic-bezier(.2,1.6,.4,1) both; }
+.seat.intro { animation: arrive 0.5s cubic-bezier(.2,1.6,.4,1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+.seat.leaving { animation: leave 0.35s ease-in forwards; pointer-events: none; }
+@keyframes arrive { from { transform: translateY(10px) scale(0.4); opacity: 0; } }
+@keyframes leave { to { transform: scale(0.4); opacity: 0; } }
 .seat .kick {
   min-height: 32px; width: 32px; padding: 0; border-radius: 50%;
   font-size: 0.9rem; border-width: 2px; box-shadow: 0 2px 0 var(--outline);
@@ -359,6 +464,24 @@ body[data-mood="morning"] .error-text { color: var(--tomato); }
   position: absolute; top: -9px; left: 50%; width: 26px; height: 18px; transform: translateX(-50%) rotate(-8deg);
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 18'%3E%3Cpath d='M2 16 L4 4 L9 10 L13 2 L17 10 L22 4 L24 16 Z' fill='%23ffc23d' stroke='%232b1d14' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
 }
+/* A crown that just moved to a new host drops in and wiggles. */
+.avatar.host.crown-new::after { animation: crown-drop 1s cubic-bezier(.3,1.4,.5,1) both; }
+@keyframes crown-drop {
+  0% { transform: translate(-50%, -26px) rotate(-30deg) scale(1.3); opacity: 0; }
+  40% { transform: translate(-50%, 0) rotate(12deg); opacity: 1; }
+  60% { transform: translate(-50%, 0) rotate(-20deg); }
+  80% { transform: translate(-50%, 0) rotate(0deg); }
+  100% { transform: translateX(-50%) rotate(-8deg); }
+}
+/* Every mouse blinks and twitches its ears now and then, each at its own pace
+   (--blink, --twitch and --delay come from the player's id, see components.js). */
+.avatar .eyes { transform-box: fill-box; transform-origin: center; animation: blink var(--blink, 5s) var(--delay, 0s) infinite; }
+.avatar .ear { transform-box: fill-box; animation: twitch-l var(--twitch, 8s) var(--delay, 0s) infinite; }
+.avatar .ear-l { transform-origin: 85% 85%; }
+.avatar .ear-r { transform-origin: 15% 85%; animation-name: twitch-r; }
+@keyframes blink { 0%, 93%, 100% { transform: none; } 95.5% { transform: scaleY(0.1); } }
+@keyframes twitch-l { 0%, 86%, 100% { transform: none; } 89% { transform: rotate(-14deg); } 92% { transform: rotate(6deg); } 95% { transform: rotate(-4deg); } }
+@keyframes twitch-r { 0%, 86%, 100% { transform: none; } 89% { transform: rotate(14deg); } 92% { transform: rotate(-6deg); } 95% { transform: rotate(4deg); } }
 .avatars { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .avatars .avatar.done::before {
   content: "✓"; position: absolute; right: -4px; bottom: -4px; width: 18px; height: 18px; border-radius: 50%;
@@ -419,6 +542,11 @@ body[data-mood="morning"] .caption { background: rgb(255 255 255 / 0.55); border
 .countdown .bar { height: 12px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 20%, transparent); border: 2px solid color-mix(in srgb, var(--outline) 60%, transparent); overflow: hidden; }
 .countdown .bar > i { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--cheddar); transition: width 0.2s linear; }
 body[data-mood="morning"] .countdown .bar { background: rgb(255 255 255 / 0.6); }
+/* The last five seconds (clock.js adds .urgent). */
+.countdown.urgent .secs { display: inline-block; color: var(--urgent); animation: tick 1s ease-out infinite; }
+.countdown.urgent .bar > i { background: linear-gradient(90deg, #ff6a3d, #ffa53d); animation: bar-pulse 1s ease-in-out infinite; }
+@keyframes tick { 0% { transform: scale(1.3); } 40%, 100% { transform: scale(1); } }
+@keyframes bar-pulse { 50% { opacity: 0.6; } }
 
 /* Hours of the night */
 .hour-track { list-style: none; margin: 0; padding: 0; display: flex; justify-content: center; gap: 8px; }
@@ -440,17 +568,29 @@ body[data-mood="morning"] .countdown .bar { background: rgb(255 255 255 / 0.6); 
   aspect-ratio: 5 / 7;
   margin: 0 auto;
   border-radius: 26px;
-  border: 4px solid var(--ink);
-  box-shadow: 0 7px 0 var(--ink), var(--soft-shadow);
+  perspective: 1000px;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   cursor: pointer;
-  overflow: hidden;
   transition: transform 0.15s ease;
 }
-.hold-card > * { grid-area: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 22px; text-align: center; }
+/* Holding the card turns it over like a real card; letting go turns it back, faster. */
+.hold-card .flip { display: grid; transform-style: preserve-3d; transition: transform 0.22s ease-in; }
+.hold-card.open .flip { transform: rotateY(180deg); transition: transform 0.55s cubic-bezier(.45,1.3,.55,1); }
+.hold-card .face {
+  grid-area: 1 / 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: 22px; text-align: center;
+  border-radius: 26px;
+  border: 4px solid var(--ink);
+  box-shadow: 0 7px 0 var(--ink), var(--soft-shadow);
+  overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: rotateY(0deg);
+}
 .hold-card .cover {
   color: var(--ink);
   background:
@@ -464,40 +604,50 @@ body[data-mood="morning"] .countdown .bar { background: rgb(255 255 255 / 0.6); 
 }
 .hold-card .cover .hint { font-weight: 800; font-size: 0.9rem; background: rgb(255 246 227 / 0.85); border-radius: 10px; padding: 4px 10px; }
 .hold-card .secret {
+  /* Also hidden outright while the card is face down, in case a browser ignores backface-visibility. */
   visibility: hidden;
+  transition: visibility 0s linear 0.11s;
+  transform: rotateY(180deg);
   color: var(--ink);
-  background:
-    linear-gradient(var(--cream), var(--cream)) padding-box,
-    var(--cream);
-  box-shadow: inset 0 0 0 8px var(--cream), inset 0 0 0 11px var(--cheddar);
+  background: var(--cream);
+  box-shadow: inset 0 0 0 8px var(--cream), inset 0 0 0 11px var(--cheddar), 0 7px 0 var(--ink), var(--soft-shadow);
 }
+.hold-card.open .secret { visibility: visible; transition-delay: 0.1s; }
 .hold-card .secret h2 { font-size: 1.5rem; }
 .hold-card .secret p { color: #6e5848; }
 .hold-card .role-art { width: 62%; max-width: 170px; }
 .hold-card.open { transform: scale(1.02); }
-.hold-card.open .secret { visibility: visible; }
-.hold-card.open .cover { visibility: hidden; }
 .die-row { display: flex; align-items: center; gap: 12px; text-align: left; font-weight: 700; }
 .die { filter: drop-shadow(0 3px 0 var(--ink)); }
 
-.hold-card.compact { aspect-ratio: auto; width: 100%; min-height: 84px; border-radius: 18px; border-width: 3px; box-shadow: 0 4px 0 var(--ink); }
-.hold-card.compact > * { flex-direction: row; padding: 10px 14px; gap: 12px; }
+.hold-card.compact { aspect-ratio: auto; width: 100%; min-height: 84px; border-radius: 18px; perspective: 600px; }
+.hold-card.compact .face { flex-direction: row; padding: 10px 14px; gap: 12px; border-radius: 18px; border-width: 3px; box-shadow: 0 4px 0 var(--ink); }
+/* The wide card flips top over bottom instead. */
+.hold-card.compact.open .flip { transform: rotateX(180deg); }
 .hold-card.compact .cover .badge-pill { font-size: 1rem; padding: 8px 14px; }
 .hold-card.compact .role-art { width: 54px; }
-.hold-card.compact .secret { box-shadow: none; justify-content: flex-start; text-align: left; }
+.hold-card.compact .secret { transform: rotateX(180deg); justify-content: flex-start; text-align: left; }
 .hold-card.compact .secret h3 { font-size: 1.05rem; }
 
 /* ---------------------------------------------------------------------------
    Night */
 
 .asleep { justify-content: center; text-align: center; gap: 18px; }
-.asleep .moon { width: 120px; opacity: 0.55; filter: none; }
+.moon-wrap { position: relative; width: 120px; margin: 0 auto; animation: float 6s ease-in-out infinite; }
+.moon-wrap::before {
+  content: ""; position: absolute; inset: -35%; border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 241 201 / 0.2), transparent 62%);
+  animation: moon-glow 4s ease-in-out infinite alternate;
+}
+.moon-wrap .moon { position: relative; width: 100%; opacity: 0.55; filter: none; }
+@keyframes moon-glow { from { opacity: 0.35; transform: scale(0.88); } to { opacity: 1; transform: scale(1.08); } }
+@keyframes float { 50% { transform: translateY(-9px) rotate(-3deg); } }
 .asleep h2 { color: #a9a4d4; font-size: 1.8rem; }
 .asleep .hour-track li { background: transparent; border-color: #22264a; color: #4b4778; }
 .asleep .hour-track li.now { background: #22264a; color: #a9a4d4; box-shadow: none; transform: none; }
 .asleep .countdown .bar { background: #0d1024; border-color: #1a1d3a; }
-.asleep .countdown .bar > i { background: #2e3164; }
-.asleep .countdown .secs { color: #4b4778; }
+.asleep .countdown .bar > i, .asleep .countdown.urgent .bar > i { background: #2e3164; animation: none; }
+.asleep .countdown .secs, .asleep .countdown.urgent .secs { color: #4b4778; animation: none; }
 body[data-mood="night"] .topbar, body[data-mood="night"] .caption { opacity: 0.7; }
 body[data-mood="night"] .caption { background: #0d1024; border-color: #1a1d3a; color: #8c87b8; }
 body[data-mood="night"] button { box-shadow: 0 4px 0 #000; border-color: #000; }
@@ -506,6 +656,32 @@ body[data-mood="night"] button { box-shadow: 0 4px 0 #000; border-color: #000; }
 .awake-head h1 { color: var(--cheddar); font-size: 2.1rem; }
 .scene { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; color: var(--on-surface); }
 .scene .art { width: 170px; }
+.plate-stack { position: relative; width: 170px; }
+.plate-stack .art { width: 100%; filter: none; }
+.plate-stack .on-plate { position: absolute; left: 17%; top: -3%; width: 66%; animation: cheese-idle 3.2s ease-in-out infinite; }
+@keyframes cheese-idle { 50% { transform: translateY(-3px) rotate(-1.5deg); } }
+/* The snatch: the cheese wobbles, then zips away and leaves crumbs behind. */
+.snatch .on-plate { animation: snatch 1.2s linear 0.1s forwards; }
+@keyframes snatch {
+  0% { transform: none; }
+  10% { transform: rotate(-7deg); }
+  20% { transform: rotate(7deg); }
+  30% { transform: rotate(-5deg); }
+  40% { transform: translateY(-6px) rotate(3deg); animation-timing-function: cubic-bezier(.5,0,.9,.4); }
+  100% { transform: translate(170px, -190px) rotate(50deg) scale(0.35); opacity: 0; }
+}
+.plate-stack .crumb {
+  position: absolute; left: 48%; top: 50%; width: 10px; height: 10px; border-radius: 3px;
+  background: #ffc23d; border: 2px solid var(--ink); opacity: 0;
+  animation: crumb 0.9s cubic-bezier(.2,.7,.4,1) 0.5s forwards;
+}
+@keyframes crumb {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(220deg); }
+}
+.snatch p { animation: fade-up 0.4s ease 1s both; }
+@keyframes fade-up { from { opacity: 0; transform: translateY(8px); } }
 .scene p { font: 600 1.15rem var(--font-display); }
 .who-awake { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .who-awake .avatars .avatar { opacity: 1; }
@@ -525,12 +701,17 @@ body[data-mood="night"] .hold-card .cover {
     radial-gradient(circle at 75% 75%, #262b55 0 5px, transparent 6px) 0 0 / 44px 44px,
     #1a1e3d;
 }
-body[data-mood="night"] .hold-card { border-color: #000; box-shadow: 0 4px 0 #000; }
+body[data-mood="night"] .hold-card .face { border-color: #000; box-shadow: 0 4px 0 #000; }
 body[data-mood="night"] .hold-card .cover .badge-pill { background: #262b55; color: var(--on-surface); border-color: #000; box-shadow: 0 3px 0 #000; }
 .screen-inner > .art { width: min(62%, 230px); }
 
 body[data-mood="dawn"] .screen-inner { justify-content: center; text-align: center; }
 .dawn-art { width: 220px; }
+.sunrise .sun-body { animation: sun-up 2.4s cubic-bezier(.2,.7,.2,1) both; }
+.sunrise .rays { transform-origin: 80px 78px; animation: rays-in 0.8s ease 1.8s both, rays-pulse 3s ease-in-out 2.6s infinite alternate; }
+@keyframes sun-up { from { transform: translateY(64px); } }
+@keyframes rays-in { from { opacity: 0; transform: scale(0.6); } }
+@keyframes rays-pulse { to { transform: scale(1.08); } }
 
 /* ---------------------------------------------------------------------------
    Day */
@@ -559,15 +740,25 @@ details.card .notes { border: 0; padding: 8px 0 0; box-shadow: none; background:
 /* Results */
 .verdict { position: relative; align-items: center; text-align: center; padding-top: 22px; }
 .verdict .art { width: 150px; }
+.verdict { animation: shake 0.45s ease-out 0.85s; }
+@keyframes shake {
+  20% { transform: translate(-5px, 2px) rotate(-0.8deg); }
+  40% { transform: translate(5px, -2px) rotate(0.8deg); }
+  60% { transform: translate(-3px, 1px) rotate(-0.4deg); }
+  80% { transform: translate(2px, 0); }
+}
 .stamp {
+  animation: thud 0.35s cubic-bezier(.55,0,1,.45) 0.5s both;
   position: absolute; top: 18px; right: 12px; transform: rotate(12deg);
   font: 700 1.05rem var(--font-display); letter-spacing: 0.08em; text-transform: uppercase;
   padding: 6px 12px; border-radius: 10px; border: 3px solid currentColor; background: rgb(255 255 255 / 0.85);
 }
 .stamp.caught { color: var(--tomato); }
+@keyframes thud { from { transform: rotate(-8deg) scale(3); opacity: 0; } 50% { opacity: 1; } to { transform: rotate(12deg) scale(1); opacity: 1; } }
 .stamp.away { color: var(--mint); }
 .verdict h1 { font-size: 2rem; }
 .ribbon {
+  animation: pop-in 0.45s cubic-bezier(.2,1.4,.4,1) 1.2s both;
   display: inline-block; margin-top: 4px; padding: 8px 18px; border-radius: 999px;
   font: 700 1.2rem var(--font-display); border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink);
 }
@@ -580,12 +771,14 @@ details.card .notes { border: 0; padding: 8px 0 0; box-shadow: none; background:
 .reveal-row .who .label { display: block; font-size: 0.8rem; }
 .reveal-row .who strong { font: 600 1.2rem var(--font-display); }
 .tally { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.tally li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; }
+.tally li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; opacity: 0.5; transition: opacity 0.3s ease; }
+.tally li.shown { opacity: 1; }
+.tally li.leader.shown .count { animation: pop-in 0.5s cubic-bezier(.2,1.4,.4,1) 0.6s both; }
 .tally .avatar { width: 34px; height: 34px; }
 .tally .bar-wrap { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .tally .bar-wrap .n { font: 600 1rem var(--font-display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tally .bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
-.tally .bar > i { display: block; height: 100%; border-radius: inherit; background: var(--bluebell); }
+.tally .bar > i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--bluebell); transition: width 0.7s cubic-bezier(.2,.8,.2,1); }
 .tally li.leader .bar > i { background: var(--cheddar-deep); }
 .tally .from { font-size: 0.78rem; color: var(--on-surface-muted); font-weight: 700; }
 .tally .count { font: 700 1.3rem var(--font-display); min-width: 1.4em; text-align: right; }
@@ -615,13 +808,62 @@ details.card .notes { border: 0; padding: 8px 0 0; box-shadow: none; background:
   animation: pop-in 0.3s cubic-bezier(.2,1.4,.4,1) both;
 }
 
+/* Cheese-crumb confetti for the winners (day.js). */
+.confetti { position: fixed; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; }
+.confetti > i {
+  position: absolute; top: -28px; left: var(--x); width: var(--size); height: var(--size);
+  animation: fall var(--dur) cubic-bezier(.3,.1,.6,1) var(--delay) both;
+}
+.confetti > .b0 { background: var(--cheddar); clip-path: polygon(0 100%, 50% 0, 100% 100%); }
+.confetti > .b1 { background: #fff1c9; border: 2px solid var(--ink); border-radius: 50%; }
+.confetti > .b2 { background: var(--cheddar-deep); border: 2px solid var(--ink); border-radius: 3px; }
+@keyframes fall {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translate(var(--drift), 110vh) rotate(var(--spin)); opacity: 0; }
+}
+
+/* The mouse that peeks out of its hole (components.js peekingMouse). */
+.peeker .peek-mouse { transform-origin: 100px 128px; animation: peek 7s ease-in-out infinite; }
+.peeker .peek-eyes { animation: peek-look 7s ease-in-out infinite; }
+@keyframes peek {
+  0%, 10% { transform: translateY(64px); }
+  20% { transform: translateY(0); }
+  28%, 40% { transform: translateX(-6px) rotate(-7deg); }
+  50%, 62% { transform: translateX(6px) rotate(7deg); }
+  70% { transform: translateY(0); }
+  74% { transform: translateY(-3px); }
+  84%, 100% { transform: translateY(64px); }
+}
+@keyframes peek-look {
+  0%, 22% { transform: none; }
+  28%, 40% { transform: translateX(-3px); }
+  50%, 62% { transform: translateX(3px); }
+  70%, 100% { transform: none; }
+}
+/* On Home the hole is set into the bottom edge of the screen, behind the content. */
+.home-hole { position: fixed; right: 14px; bottom: 0; z-index: -1; width: 84px; pointer-events: none; }
+.home-hole .art { filter: none; }
+
+/* Screens slide and fade into each other (dom.js swap). Browsers with View Transitions
+   cross over from the old screen; others just slide the new one in. */
+#app { view-transition-name: app; }
+.toast { view-transition-name: toast; }
+.banner { view-transition-name: banner; }
+::view-transition-old(root), ::view-transition-new(root), ::view-transition-group(app) { animation: none; }
+::view-transition-old(app) { animation: vt-out 0.22s ease-in both; }
+::view-transition-new(app) { animation: vt-in 0.4s cubic-bezier(.2,.8,.2,1) 0.06s both; }
+@keyframes vt-out { to { opacity: 0; transform: translateY(-10px) scale(0.985); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(18px) scale(0.985); } }
+.enter { animation: vt-in 0.4s cubic-bezier(.2,.8,.2,1) both; }
+
 .dots::after { content: ""; animation: dots 1.5s steps(4) infinite; }
 @keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
 
 /* Very narrow phones: one tile per row where names need the room. */
 @media (max-width: 359px) {
   .seats, .everyone { grid-template-columns: minmax(0, 1fr); }
-  .room-code { font-size: 2.5rem; }
+  .room-code { font-size: 2.2rem; gap: 6px; }
 }
 
 @media (min-width: 420px) {

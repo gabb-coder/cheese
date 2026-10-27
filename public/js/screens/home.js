@@ -1,7 +1,7 @@
 // Home: pick a name, then create a room or join one with a code (or a ?r=CODE link).
 
 import { h } from '../dom.js';
-import { art } from '../components.js';
+import { art, peekingMouse } from '../components.js';
 import { prefs } from '../storage.js';
 
 let errorEl = null;
@@ -66,6 +66,7 @@ export function render({ state, actions }) {
     ),
     errorEl,
     h('p', { class: 'footnote' }, '4–8 players · one phone each'),
+    h('div', { class: 'home-hole', 'aria-hidden': 'true' }, peekingMouse('', { wall: false })),
   );
 }
 

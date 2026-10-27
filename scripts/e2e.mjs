@@ -73,7 +73,7 @@ async function roomWith(newPlayer, names) {
   await host.fill('#name', names[0]);
   await host.click('text=Create a room');
   await host.waitForSelector('.room-code');
-  const code = (await host.textContent('.room-code')).trim();
+  const code = await host.getAttribute('.room-code', 'data-code');
   pages.push(host);
   for (const name of names.slice(1)) {
     const p = await newPlayer();
