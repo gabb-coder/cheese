@@ -225,8 +225,7 @@ export class Room {
 
   addBot() {
     const taken = new Set([...this.seats.values()].map((s) => nameKey(s.name)));
-    let name = BOT_NAMES.find((n) => !taken.has(nameKey(`🤖 ${n}`)));
-    name = name ? `🤖 ${name}` : `🤖 Bot ${this.seats.size + 1}`;
+    const name = BOT_NAMES.find((n) => !taken.has(nameKey(n))) ?? `Bot ${this.seats.size + 1}`;
     const seat = { id: this.newSeatId(), name, token: null, isBot: true, conn: null, joinedAt: this.now() };
     this.seats.set(seat.id, seat);
   }

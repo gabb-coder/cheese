@@ -4,89 +4,99 @@
 // what this player's view contains: who else is awake, the cheese, and their actions.
 
 import { h } from '../dom.js';
-import { countdown, hourTrack, holdCard, dieFace, nameOf, listNames } from '../components.js';
+import { countdown, hourTrack, holdCard, dieFace, nameOf, listNames, art, avatar } from '../components.js';
 
 export const key = (view) => JSON.stringify([view.phase.hour ?? null, view.night, view.follower ?? null]);
+
+const playerOf = (view, id) => view.players.find((p) => p.id === id) ?? { id, name: 'someone' };
 
 export function render({ state, actions }) {
   const view = state.view;
   const { name, hour } = view.phase;
   if (name === 'NIGHT_INTRO') return asleep(view, 'Night falls…', 'Close your eyes. The night is about to begin.');
   if (name === 'HOUR') {
-    return view.night.awakeNow ? awake(view, actions) : asleep(view, `It's ${hour} o'clock`, 'Keep your eyes closed.');
+    return view.night.awakeNow ? awake(view, actions) : asleep(view, `${hour} o'clock`, 'Eyes closed… sleep tight.');
   }
   if (name === 'FOLLOWER_CHOICE') {
     return view.follower?.options ? chooseFollower(view, actions)
-      : asleep(view, 'The Thief is choosing…', 'Keep your eyes closed.');
+      : asleep(view, 'Shhh…', 'The Thief is choosing a Follower. Keep your eyes closed.');
   }
   if (name === 'FOLLOWER_MEET') {
     if (view.follower?.isYou) return meetAsFollower(view);
     if (view.follower?.chosenId) return meetAsThief(view);
-    return asleep(view, 'The Thief is choosing…', 'Keep your eyes closed.');
+    return asleep(view, 'Shhh…', 'The Thief is choosing a Follower. Keep your eyes closed.');
   }
   return dawn(view);
 }
 
 function asleep(view, title, subtitle) {
   return h('section', { class: 'screen-inner asleep' },
-    h('div', { class: 'moon', 'aria-hidden': 'true' }, '🌙'),
-    h('h2', { class: 'hero' }, title),
-    h('p', { class: 'hero dim' }, '😴 ', subtitle),
+    art('moon', 'moon'),
+    h('h2', {}, title),
+    h('p', {}, subtitle),
     hourTrack(view.phase.hour),
     countdown(view.phase.endsAt),
   );
 }
 
-function cheeseLine(seen, iAmThief) {
-  if (iAmThief && !seen.cheeseOnTable) return h('div', { class: 'cheese' }, h('span', { class: 'big' }, '🐭🧀'), h('p', {}, 'You took the cheese!'));
+function scene(seen, iAmThief) {
+  if (iAmThief && !seen.cheeseOnTable) return h('div', { class: 'scene pop-in' }, art('role-thief'), h('p', {}, 'You took the cheese!'));
   return seen.cheeseOnTable
-    ? h('div', { class: 'cheese' }, h('span', { class: 'big' }, '🧀'), h('p', {}, 'The cheese is on the table.'))
-    : h('div', { class: 'cheese' }, h('span', { class: 'big' }, '🍽️'), h('p', {}, 'The cheese is gone!'));
+    ? h('div', { class: 'scene' }, art('cheese'), h('p', {}, 'The cheese is on the table.'))
+    : h('div', { class: 'scene' }, art('plate'), h('p', {}, 'The cheese is gone!'));
+}
+
+function playerButton(view, id, onClick) {
+  const p = playerOf(view, id);
+  return h('button', { class: 'btn-secondary', onClick }, avatar(p, 38), h('span', { class: 'n' }, p.name));
 }
 
 function awake(view, actions) {
   const seen = view.night.seen;
   const iAmThief = view.me.role === 'thief';
-  const others = view.players.filter((p) => p.id !== view.me.id);
   const parts = [];
 
-  parts.push(h('p', { class: 'hero' }, seen.companions.length
-    ? `Also awake: ${listNames(view, seen.companions)}`
-    : 'Nobody else is awake.'));
-  parts.push(cheeseLine(seen, iAmThief));
+  parts.push(h('div', { class: 'who-awake' },
+    seen.companions.length
+      ? [h('div', { class: 'avatars' }, seen.companions.map((id) => avatar(playerOf(view, id), 40))),
+        h('p', {}, `Also awake: ${listNames(view, seen.companions)}`)]
+      : h('p', {}, 'Nobody else is awake.')));
+  parts.push(scene(seen, iAmThief));
 
   if (seen.canSteal) {
     parts.push(h('button', { class: 'btn-primary btn-block btn-big', onClick: () => actions.send({ t: 'steal' }) },
-      'Take the cheese 🧀'));
-    parts.push(h('p', { class: 'muted small hero' }, seen.companions.length
+      '🧀  Take the cheese'));
+    parts.push(h('p', { class: 'muted small center' }, seen.companions.length
       ? "The others awake will see you do it. If you wait, you'll grab it automatically."
       : "If you wait, you'll grab it automatically."));
   }
 
   if (seen.thiefId) {
-    parts.push(h('div', { class: 'card alert' },
-      h('strong', {}, `👀 You saw ${nameOf(view, seen.thiefId)} take the cheese!`),
-      h('p', { class: 'small' }, `${nameOf(view, seen.thiefId)} is the Cheese Thief.`)));
+    parts.push(h('div', { class: 'card alert pop-in' },
+      h('div', { class: 'row' }, avatar(playerOf(view, seen.thiefId), 44),
+        h('div', {}, h('strong', {}, `You saw ${nameOf(view, seen.thiefId)} take the cheese!`),
+          h('p', { class: 'small' }, `${nameOf(view, seen.thiefId)} is the Cheese Thief.`)))));
   }
 
   if (seen.canPeek) {
+    const others = view.players.filter((p) => p.id !== view.me.id);
     const picker = h('div', { class: 'picker', hidden: true },
-      others.map((p) => h('button', { class: 'btn-secondary', onClick: () => actions.send({ t: 'peek', playerId: p.id }) }, p.name)));
+      others.map((p) => playerButton(view, p.id, () => actions.send({ t: 'peek', playerId: p.id }))));
     const openBtn = h('button', {
       class: 'btn-primary btn-block',
       onClick: () => { picker.hidden = false; openBtn.hidden = true; },
-    }, "🎲 Peek at someone's die");
-    parts.push(h('p', { class: 'hero small muted' }, "You're the only one awake, so you may peek at one die."), openBtn, picker);
+    }, "🔍  Peek at someone's die");
+    parts.push(h('p', { class: 'center small muted' }, "You're the only one awake, so you may peek at one die."), openBtn, picker);
   }
 
   if (seen.peek) {
-    parts.push(h('div', { class: 'card peek-result' },
-      dieFace(seen.peek.die, 64),
+    parts.push(h('div', { class: 'card peek-result pop-in' },
+      dieFace(seen.peek.die, 56),
       h('p', {}, h('strong', {}, nameOf(view, seen.peek.playerId)), ` rolled a ${seen.peek.die}.`)));
   }
 
   return h('section', { class: 'screen-inner awake' },
-    h('h1', { class: 'hero' }, "👀 It's your hour!"),
+    h('div', { class: 'awake-head' }, h('h1', {}, "It's your hour!"), h('p', { class: 'muted' }, 'Open your eyes, quietly.')),
     hourTrack(view.phase.hour),
     ...parts,
     h('div', { class: 'grow' }),
@@ -98,13 +108,12 @@ function awake(view, actions) {
 function chooseFollower(view, actions) {
   const { options, chosenId } = view.follower;
   return h('section', { class: 'screen-inner awake' },
-    h('h1', { class: 'hero' }, '🐭 Choose your Follower'),
-    h('p', { class: 'hero muted' }, 'Your Follower wins with you if you are not caught. They will find out who you are.'),
+    h('div', { class: 'awake-head' }, h('h1', {}, 'Choose your Follower')),
+    h('p', { class: 'center muted' }, 'Your Follower wins with you if you are not caught. They will find out who you are.'),
     chosenId
-      ? h('div', { class: 'card hero' }, h('strong', {}, `You chose ${nameOf(view, chosenId)}.`),
-        h('p', { class: 'small muted' }, 'They will see you in a moment.'))
-      : h('div', { class: 'picker' }, options.map((id) =>
-        h('button', { class: 'btn-secondary', onClick: () => actions.send({ t: 'chooseFollower', playerId: id }) }, nameOf(view, id)))),
+      ? h('div', { class: 'card hero pop-in' }, avatar(playerOf(view, chosenId), 64),
+        h('strong', {}, `You chose ${nameOf(view, chosenId)}.`), h('p', { class: 'small muted' }, 'They will see you in a moment.'))
+      : h('div', { class: 'picker' }, options.map((id) => playerButton(view, id, () => actions.send({ t: 'chooseFollower', playerId: id })))),
     h('div', { class: 'grow' }),
     countdown(view.phase.endsAt, chosenId ? 'Meet-up in' : "If you don't choose, one is picked for you in"),
   );
@@ -113,21 +122,21 @@ function chooseFollower(view, actions) {
 function meetAsThief(view) {
   const name = nameOf(view, view.follower.chosenId);
   return h('section', { class: 'screen-inner awake' },
-    h('div', { class: 'role-art hero' }, '🤝'),
-    h('h1', { class: 'hero' }, `${name} is your Follower`),
-    h('p', { class: 'hero muted' }, `${name} now knows you are the Thief. Look at each other, quietly!`),
+    art('pair', 'pop-in'),
+    h('div', { class: 'awake-head' }, h('h1', {}, `${name} is your Follower`)),
+    h('p', { class: 'center muted' }, `${name} now knows you are the Thief. Look at each other, quietly!`),
     h('div', { class: 'grow' }),
     countdown(view.phase.endsAt, 'Eyes close in'),
   );
 }
 
 function meetAsFollower(view) {
-  const name = nameOf(view, view.follower.thiefId);
+  const thief = playerOf(view, view.follower.thiefId);
   return h('section', { class: 'screen-inner awake' },
-    h('div', { class: 'role-art hero' }, '🤝'),
-    h('h1', { class: 'hero' }, "You are the Thief's Follower!"),
-    h('div', { class: 'card hero' }, h('p', {}, 'The Cheese Thief is'), h('div', { class: 'big-name' }, name)),
-    h('p', { class: 'hero muted' }, 'You win with the Thief if the Thief does not get the most votes. Keep it secret!'),
+    art('pair', 'pop-in'),
+    h('div', { class: 'awake-head' }, h('h1', {}, "You are the Thief's Follower!")),
+    h('div', { class: 'card hero' }, h('p', { class: 'muted' }, 'The Cheese Thief is'), avatar(thief, 64), h('div', { class: 'big-name' }, thief.name)),
+    h('p', { class: 'center muted' }, 'You win with the Thief if the Thief does not get the most votes. Keep it secret!'),
     h('div', { class: 'grow' }),
     countdown(view.phase.endsAt, 'Eyes close in'),
   );
@@ -135,9 +144,9 @@ function meetAsFollower(view) {
 
 function dawn(view) {
   return h('section', { class: 'screen-inner' },
-    h('div', { class: 'moon', 'aria-hidden': 'true' }, '☀️'),
-    h('h1', { class: 'hero' }, 'Good morning!'),
-    h('p', { class: 'hero muted' }, 'Everyone, open your eyes. The cheese is gone…'),
+    art('sun', 'dawn-art pop-in'),
+    h('h1', { class: 'title' }, 'Good morning!'),
+    h('p', {}, 'Everyone, open your eyes. The cheese is gone…'),
     countdown(view.phase.endsAt),
   );
 }

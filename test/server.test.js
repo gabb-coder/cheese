@@ -277,7 +277,8 @@ describe('bots', () => {
     let view = await host.waitForView((v) => v.players.length === 4);
     const bots = view.players.filter((p) => p.isBot);
     assert.equal(bots.length, 3);
-    assert.ok(bots.every((b) => b.name.startsWith('🤖') && b.connected));
+    assert.ok(bots.every((b) => b.isBot && b.connected));
+    assert.equal(new Set(view.players.map((p) => p.name.toLowerCase())).size, view.players.length, 'bot names are unique');
     host.send({ t: 'removeBot', playerId: bots[0].id });
     view = await host.waitForView((v) => v.players.length === 3);
     host.send({ t: 'removeBot', playerId: host.id });

@@ -1,6 +1,7 @@
 // Lobby: room code and share link, who's here, host controls (kick, bots, start).
 
 import { h, toast } from '../dom.js';
+import { avatar } from '../components.js';
 
 const MIN_PLAYERS = 4;
 const MAX_PLAYERS = 8;
@@ -39,7 +40,7 @@ function settingsCard(view, isHost, actions) {
       `${s.hourSec} s per hour · ${mins(s.discussionSec)} discussion · ${s.voteSec} s to vote`);
   }
   const details = h('details', { class: 'card settings', open: settingsOpen },
-    h('summary', {}, '⚙️ Game settings'),
+    h('summary', {}, '⚙️  Game settings'),
     select('Each hour', s.hourSec, [[10, '10 s'], [15, '15 s'], [20, '20 s'], [30, '30 s']], (v) => set({ hourSec: v })),
     select('Thief picks a Follower', s.followerChoiceSec, [[15, '15 s'], [20, '20 s'], [30, '30 s']], (v) => set({ followerChoiceSec: v })),
     select('Discussion', s.discussionSec, [[60, '1 min'], [120, '2 min'], [180, '3 min'], [300, '5 min'], [480, '8 min']],
@@ -64,51 +65,54 @@ export function render({ state, actions }) {
   const host = players.find((p) => p.isHost);
   const count = players.length;
 
-  const list = h('ul', { class: 'players' }, players.map((p) =>
-    h('li', { class: `player${p.connected ? '' : ' offline'}` },
-      h('span', { class: 'name' }, p.isHost ? '👑 ' : '', p.name),
-      p.id === meId ? h('span', { class: 'badge you' }, 'you') : null,
-      p.connected ? null : h('span', { class: 'badge' }, 'offline'),
-      isHost && p.id !== meId
-        ? h('button', {
-          class: 'kick',
-          'aria-label': `Remove ${p.name}`,
-          onClick: () => {
-            if (p.isBot) actions.send({ t: 'removeBot', playerId: p.id });
-            else if (confirm(`Remove ${p.name} from the room?`)) actions.send({ t: 'kick', playerId: p.id });
-          },
-        }, '✕')
-        : null,
-    )));
+  const seat = (p) => h('li', { class: `seat${p.connected ? '' : ' offline'}${p.id === meId ? ' me' : ''}` },
+    avatar(p, 44),
+    h('div', { class: 'grow' },
+      h('div', { class: 'name' }, p.name),
+      h('div', { class: 'sub' }, [p.id === meId ? 'you' : null, p.isHost ? 'host' : null, p.isBot ? 'bot' : null,
+        p.connected ? null : 'offline'].filter(Boolean).join(' · ') || '\u00a0')),
+    isHost && p.id !== meId
+      ? h('button', {
+        class: 'kick',
+        'aria-label': `Remove ${p.name}`,
+        onClick: () => {
+          if (p.isBot) actions.send({ t: 'removeBot', playerId: p.id });
+          else if (confirm(`Remove ${p.name} from the room?`)) actions.send({ t: 'kick', playerId: p.id });
+        },
+      }, '✕')
+      : null);
+
+  // Empty chairs up to the 4 needed to start, then one "room for more" chair.
+  const empty = [];
+  const missing = Math.max(0, MIN_PLAYERS - count);
+  for (let i = 0; i < missing; i++) empty.push(h('li', { class: 'seat empty' }, 'waiting for a mouse…'));
+  if (!missing && count < MAX_PLAYERS) empty.push(h('li', { class: 'seat empty' }, `room for ${MAX_PLAYERS - count} more`));
 
   const need = MIN_PLAYERS - count;
-  const hostControls = isHost
-    ? [
-      view.room.botsEnabled && count < MAX_PLAYERS
-        ? h('button', { class: 'btn-secondary btn-block', onClick: () => actions.send({ t: 'addBot' }) }, '🤖 Add a bot')
-        : null,
-      h('button', {
-        class: 'btn-primary btn-block',
-        disabled: need > 0,
-        onClick: () => actions.send({ t: 'start' }),
-      }, need > 0 ? `Need ${need} more player${need === 1 ? '' : 's'}` : 'Start the game'),
-    ]
-    : h('p', { class: 'muted hero' }, h('span', { class: 'dots' }, `Waiting for ${host?.name ?? 'the host'} to start`));
+  const actionsBar = h('div', { class: 'actions' },
+    isHost && view.room.botsEnabled && count < MAX_PLAYERS
+      ? h('button', { class: 'btn-secondary btn-block', onClick: () => actions.send({ t: 'addBot' }) }, '🤖  Add a bot')
+      : null,
+    isHost
+      ? h('button', { class: 'btn-primary btn-block btn-big', disabled: need > 0, onClick: () => actions.send({ t: 'start' }) },
+        need > 0 ? `Need ${need} more ${need === 1 ? 'mouse' : 'mice'}` : 'Start the game')
+      : h('p', { class: 'muted center' }, h('span', { class: 'dots' }, `Waiting for ${host?.name ?? 'the host'} to start`)),
+    h('button', { class: 'btn-ghost', onClick: () => actions.leave() }, 'Leave room'),
+  );
 
   return h('section', { class: 'screen' },
-    h('div', { class: 'hero' },
-      h('img', { class: 'logo small', src: 'img/logo.svg', alt: '' }),
-      h('p', { class: 'muted small' }, 'Room code'),
-      h('div', { class: 'room-code', 'aria-label': `Room code ${view.room.code.split('').join(' ')}` }, view.room.code),
-      h('button', { class: 'btn-secondary btn-small', onClick: () => shareLink(view.room.code) }, '🔗 Share invite link'),
+    h('div', { class: 'lobby-head' },
+      h('div', { class: 'ticket' },
+        h('div', { class: 'label' }, 'ROOM CODE'),
+        h('div', { class: 'room-code', 'aria-label': `Room code ${view.room.code.split('').join(' ')}` }, view.room.code),
+      ),
+      h('button', { class: 'btn-secondary btn-small', onClick: () => shareLink(view.room.code) }, '🔗  Invite friends'),
     ),
     h('div', { class: 'card' },
-      h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'Mice in the house'), h('span', { class: 'muted' }, `${count}/${MAX_PLAYERS}`)),
-      list,
+      h('div', { class: 'card-title' }, h('h2', { class: 'grow' }, 'Mice in the house'), h('span', { class: 'chip' }, `${count} / ${MAX_PLAYERS}`)),
+      h('ul', { class: 'seats' }, players.map(seat), empty),
     ),
     settingsCard(view, isHost, actions),
-    h('div', { class: 'grow' }),
-    hostControls,
-    h('button', { class: 'btn-ghost', onClick: () => actions.leave() }, 'Leave room'),
+    actionsBar,
   );
 }
