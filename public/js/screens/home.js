@@ -53,7 +53,7 @@ export function render({ state, actions }) {
 
   update({ state });
   return h('section', { class: 'screen' },
-    h('div', { class: 'corner' }, settingsButton(actions.setLanguage)),
+    h('div', { class: 'corner' }, settingsButton({ onLanguage: actions.setLanguage })),
     h('div', { class: 'hero' },
       art('logo', 'logo bob'),
       h('h1', { class: 'title' }, t('home.titleA'), h('span', { class: 'accent' }, t('home.titleB'))),
