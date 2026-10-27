@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -6 160 160" role="img" aria-label="A sleepy mouse in a nightcap">
+  <g stroke="#2b1d14" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="44" cy="54" r="26" fill="#b8afc9"/>
+    <circle cx="44" cy="54" r="15" fill="#f4a7b9" stroke-width="0"/>
+    <circle cx="116" cy="54" r="26" fill="#b8afc9"/>
+    <circle cx="116" cy="54" r="15" fill="#f4a7b9" stroke-width="0"/>
+    <ellipse cx="80" cy="94" rx="44" ry="38" fill="#cdc6dc"/>
+    <!-- nightcap -->
+    <path d="M46 70 Q60 30 92 22 Q122 18 138 40 Q128 34 118 40 Q120 60 116 70 Z" fill="#7c9be0"/>
+    <path d="M58 52 Q74 40 96 38 M64 40 Q80 30 100 28" fill="none" stroke="#fff6e3" stroke-width="5" opacity="0.85"/>
+    <path d="M42 70 Q80 58 120 70 Q122 80 118 82 Q80 70 42 82 Q38 78 42 70 Z" fill="#fff6e3"/>
+    <circle cx="140" cy="44" r="10" fill="#fff6e3"/>
+  </g>
+  <!-- closed eyes -->
+  <g fill="none" stroke="#2b1d14" stroke-width="3.5" stroke-linecap="round">
+    <path d="M56 96 q8 7 16 0"/><path d="M88 96 q8 7 16 0"/>
+  </g>
+  <ellipse cx="52" cy="110" rx="8" ry="4.5" fill="#f4a7b9" opacity="0.7"/>
+  <ellipse cx="108" cy="110" rx="8" ry="4.5" fill="#f4a7b9" opacity="0.7"/>
+  <circle cx="80" cy="107" r="5.5" fill="#ef7f9c" stroke="#2b1d14" stroke-width="2.5"/>
+  <ellipse cx="80" cy="119" rx="4" ry="3" fill="#2b1d14"/>
+  <g stroke="#6f6688" stroke-width="2" stroke-linecap="round">
+    <path d="M60 109 l-22 -4"/><path d="M60 114 l-22 3"/><path d="M100 109 l22 -4"/><path d="M100 114 l22 3"/>
+  </g>
+  <!-- zzz -->
+  <g fill="none" stroke="#7c9be0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 30 h12 l-12 12 h12"/><path d="M22 10 h8 l-8 8 h8"/>
+  </g>
+</svg>

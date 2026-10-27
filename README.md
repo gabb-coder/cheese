@@ -48,3 +48,9 @@ from the cached app). They need Playwright with Chromium:
 npm i --no-save playwright && npx playwright install chromium
 npm run test:e2e
 ```
+
+## Art and fonts
+All illustrations (the mice, cheese, moon, mouse hole, …) are original SVGs in
+`public/img`, drawn for this project. Fonts: [Fredoka](https://github.com/hafontia/Fredoka-One)
+and [Nunito](https://github.com/googlefonts/nunito), both under the SIL Open Font License
+(licence files next to the fonts in `public/fonts`). No assets from the physical game are used.

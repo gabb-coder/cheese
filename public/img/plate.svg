@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 110" role="img" aria-label="An empty plate with crumbs">
+  <ellipse cx="80" cy="96" rx="70" ry="8" fill="#000" opacity="0.18"/>
+  <ellipse cx="80" cy="70" rx="70" ry="26" fill="#fff6e3" stroke="#2b1d14" stroke-width="4"/>
+  <ellipse cx="80" cy="66" rx="48" ry="15" fill="#f1e2c4" stroke="#2b1d14" stroke-width="3" opacity="0.9"/>
+  <g fill="#f0a91e" stroke="#2b1d14" stroke-width="2">
+    <path d="M62 64 l7 -3 l2 6 z"/><path d="M92 68 l6 -2 l1 5 z"/><path d="M80 60 l4 -2 l1 4 z"/>
+  </g>
+</svg>

@@ -87,8 +87,15 @@ function hello() {
   return state.pendingHello;
 }
 
+// The page's colours follow the game's time of day (see css/app.css).
+const MOOD_COLOR = { evening: '#141a3f', night: '#05060f', dawn: '#3a3a7c', morning: '#ffe9c8' };
+function setMood(mood) {
+  document.body.dataset.mood = mood;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', MOOD_COLOR[mood]);
+}
+
 function forgetRoom(noticeKey) {
-  document.body.dataset.mood = 'day';
+  setMood('evening');
   wantWakeLock(false);
   session.clear();
   state.view = null;
@@ -171,11 +178,12 @@ function handleError(msg) {
 // Step changes: narration, chimes, vibration, wake lock, night mood
 
 const NIGHT_STEPS = new Set(['NIGHT_INTRO', 'HOUR', 'FOLLOWER_CHOICE', 'FOLLOWER_MEET']);
+const DAY_STEPS = new Set(['DISCUSSION', 'VOTE', 'RESULTS']);
 const IN_GAME = new Set(['ROLE_REVEAL', ...NIGHT_STEPS, 'DAWN', 'DISCUSSION', 'VOTE']);
 
 function onStep(prev, next) {
   const phase = next.phase.name;
-  document.body.dataset.mood = NIGHT_STEPS.has(phase) ? 'night' : phase === 'DAWN' ? 'dawn' : 'day';
+  setMood(NIGHT_STEPS.has(phase) ? 'night' : phase === 'DAWN' ? 'dawn' : DAY_STEPS.has(phase) ? 'morning' : 'evening');
   wantWakeLock(IN_GAME.has(phase));
 
   // Only react to a step *change* seen live, not to the first view after (re)connecting.

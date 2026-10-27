@@ -29,7 +29,7 @@ export function render(ctx) {
   caption = h('p', { class: 'caption', 'aria-live': 'polite' });
   body = h('div', { class: 'game-body' });
   const root = h('div', { class: 'game' },
-    h('div', { class: 'topbar' }, h('span', { class: 'muted small' }, `Room ${ctx.state.view.room.code}`), narrBtnSlot),
+    h('div', { class: 'topbar' }, h('span', { class: 'room-pill' }, `ROOM ${ctx.state.view.room.code}`), narrBtnSlot),
     caption,
     body,
   );
