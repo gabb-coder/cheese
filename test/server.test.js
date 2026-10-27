@@ -1,0 +1,427 @@
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+
+import { createServer } from '../server/index.js';
+import { TestClient } from './helpers/client.js';
+import { assertWireMessage } from './helpers/wire.js';
+
+let srv;
+let clients;
+let audits;
+
+async function start(options = {}) {
+  audits = new Map();
+  clients = [];
+  srv = await createServer({
+    host: '127.0.0.1',
+    botDelayMs: 10,
+    audit: (seatId, msg, game) => {
+      if (!audits.has(seatId)) audits.set(seatId, []);
+      audits.get(seatId).push({ text: JSON.stringify(msg), game, used: false });
+    },
+    ...options,
+  });
+}
+
+async function connect(label = `c${clients.length + 1}`) {
+  const c = await TestClient.connect(srv.port, label);
+  clients.push(c);
+  return c;
+}
+
+async function createRoom(name = 'Hosty') {
+  const host = await connect(name);
+  host.send({ t: 'create', name });
+  await host.waitFor('welcome');
+  await host.waitForView();
+  return host;
+}
+
+async function joinRoom(code, name) {
+  const c = await connect(name);
+  c.send({ t: 'join', room: code, name });
+  await c.waitFor('welcome');
+  await c.waitForView();
+  return c;
+}
+
+async function lobbyOf(n) {
+  const host = await createRoom('Ana');
+  const code = host.welcome.room;
+  const others = [];
+  for (const name of ['Ben', 'Cy', 'Dee', 'Eve', 'Fay', 'Gus', 'Hal'].slice(0, n - 1)) {
+    others.push(await joinRoom(code, name));
+  }
+  await settle();
+  const all = [host, ...others];
+  for (const c of all) c.skipAll();
+  return { host, code, others, all };
+}
+
+const settle = (ms = 40) => new Promise((r) => setTimeout(r, ms));
+const playerNames = (view) => view.players.map((p) => p.name);
+
+// Every message every client received must be allowed (schema + entitlement), and every
+// view must be exactly one the server audited for that seat, together with its game state.
+function verifyWire() {
+  const allTokens = clients.flatMap((c) => c.messages.filter((m) => m.t === 'welcome').map((m) => m.token));
+  for (const c of clients) {
+    let seatId = null;
+    let token = null;
+    for (const msg of c.messages) {
+      if (msg.t === 'welcome') {
+        seatId = msg.playerId;
+        token = msg.token;
+      }
+      let game = null;
+      if (msg.t === 'view') {
+        const text = JSON.stringify(msg);
+        const entry = (audits.get(seatId) ?? []).find((a) => !a.used && a.text === text);
+        assert.ok(entry, `${c.label}: received a view the server never built for seat ${seatId}`);
+        entry.used = true;
+        game = entry.game;
+      }
+      assertWireMessage(msg, { seatId, token, game, allTokens });
+    }
+  }
+}
+
+beforeEach(() => start());
+afterEach(async () => {
+  try {
+    verifyWire();
+  } finally {
+    await Promise.all(clients.map((c) => c.close()));
+    await srv.close();
+  }
+});
+
+// ---------------------------------------------------------------------------
+
+describe('http', () => {
+  it('GET /healthz returns 200', async () => {
+    const res = await fetch(`http://127.0.0.1:${srv.port}/healthz`);
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), 'ok');
+  });
+
+  it('serves the client', async () => {
+    const res = await fetch(`http://127.0.0.1:${srv.port}/`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /html/);
+    assert.match(await res.text(), /Cheese Thief/);
+  });
+
+  it('answers app-level pings', async () => {
+    const c = await connect();
+    c.send({ t: 'ping' });
+    const pong = await c.waitFor('pong');
+    assert.equal(typeof pong.serverNow, 'number');
+  });
+});
+
+describe('lobby', () => {
+  it('create gives a 4-letter code, a secret token, and makes you host', async () => {
+    const host = await createRoom('Ana');
+    assert.match(host.welcome.room, /^[A-HJKMNP-Z]{4}$/);
+    assert.match(host.welcome.token, /^[A-Za-z0-9_-]{20,}$/);
+    assert.equal(host.view.phase.name, 'LOBBY');
+    assert.equal(host.view.room.hostId, host.id);
+    assert.deepEqual(playerNames(host.view), ['Ana']);
+  });
+
+  it('join by code shows everyone the new player', async () => {
+    const host = await createRoom('Ana');
+    const ben = await joinRoom(host.welcome.room.toLowerCase(), 'Ben');
+    const view = await host.waitForView((v) => v.players.length === 2);
+    assert.deepEqual(playerNames(view), ['Ana', 'Ben']);
+    assert.deepEqual(playerNames(ben.view), ['Ana', 'Ben']);
+    assert.equal(ben.view.room.hostId, host.id);
+  });
+
+  it('unknown room code: ROOM_NOT_FOUND', async () => {
+    const c = await connect();
+    c.send({ t: 'join', room: 'ZZZZ', name: 'Ben' });
+    const err = await c.expectError('ROOM_NOT_FOUND');
+    assert.equal(err.for, 'join');
+    assert.match(err.message, /expired/i);
+  });
+
+  it('rejects duplicate names, ignoring case and spacing', async () => {
+    const host = await createRoom('Ana Banana');
+    const c = await connect();
+    c.send({ t: 'join', room: host.welcome.room, name: '  ana   BANANA ' });
+    await c.expectError('NAME_TAKEN');
+  });
+
+  it('rejects bad names', async () => {
+    const c = await connect();
+    for (const name of ['', '   ', 'x'.repeat(17), 'bad\u0007bell', 42]) {
+      c.send({ t: 'create', name });
+      await c.expectError('BAD_NAME');
+    }
+  });
+
+  it('caps the room at 8 players', async () => {
+    const { code } = await lobbyOf(8);
+    const c = await connect();
+    c.send({ t: 'join', room: code, name: 'Ivy' });
+    await c.expectError('ROOM_FULL');
+  });
+
+  it('a connection can only hold one seat', async () => {
+    const host = await createRoom('Ana');
+    host.send({ t: 'create', name: 'Again' });
+    await host.expectError('ALREADY_SEATED');
+  });
+
+  it('host can kick in the lobby; the kicked token stops working', async () => {
+    const { host, code, others } = await lobbyOf(3);
+    const [ben] = others;
+    const benToken = ben.welcome.token;
+    host.send({ t: 'kick', playerId: ben.id });
+    await ben.expectError('KICKED');
+    const view = await host.waitForView((v) => v.players.length === 2);
+    assert.deepEqual(playerNames(view), ['Ana', 'Cy']);
+    const again = await connect('ben again');
+    again.send({ t: 'hello', room: code, token: benToken });
+    await again.expectError('SEAT_NOT_FOUND');
+  });
+
+  it('only the host can kick, and not themself', async () => {
+    const { host, others } = await lobbyOf(3);
+    others[0].send({ t: 'kick', playerId: others[1].id });
+    await others[0].expectError('NOT_HOST');
+    host.send({ t: 'kick', playerId: host.id });
+    await host.expectError('BAD_TARGET');
+  });
+
+  it('host can change settings; others cannot; out-of-range values are refused', async () => {
+    const { host, others } = await lobbyOf(2);
+    host.send({ t: 'settings', settings: { discussionSec: 240, narratorOnHost: false } });
+    const view = await others[0].waitForView((v) => v.room.settings.discussionSec === 240);
+    assert.equal(view.room.settings.narratorOnHost, false);
+    others[0].send({ t: 'settings', settings: { voteSec: 30 } });
+    await others[0].expectError('NOT_HOST');
+    host.send({ t: 'settings', settings: { hourSec: 1 } });
+    await host.expectError('BAD_MESSAGE');
+  });
+
+  it('leaving the lobby frees the seat and passes host on', async () => {
+    const { host, others } = await lobbyOf(3);
+    host.send({ t: 'leave' });
+    await host.waitFor('left');
+    const view = await others[0].waitForView((v) => v.players.length === 2);
+    assert.equal(view.room.hostId, others[0].id, 'longest-seated remaining player becomes host');
+  });
+
+  it('the room closes when the last person leaves', async () => {
+    const host = await createRoom('Ana');
+    const code = host.welcome.room;
+    host.send({ t: 'leave' });
+    await host.waitFor('left');
+    assert.equal(srv.rooms.get(code), null);
+  });
+});
+
+describe('reconnect', () => {
+  it('a player can reclaim their seat with their token after the socket drops', async () => {
+    const { host, code, others } = await lobbyOf(2);
+    const [ben] = others;
+    const { token } = ben.welcome;
+    const benId = ben.id;
+    await ben.close();
+    let view = await host.waitForView((v) => v.players.find((p) => p.id === benId)?.connected === false);
+    assert.ok(view);
+
+    const back = await connect('ben back');
+    back.send({ t: 'hello', room: code, token });
+    const welcome = await back.waitFor('welcome');
+    assert.equal(welcome.playerId, benId);
+    view = await host.waitForView((v) => v.players.find((p) => p.id === benId)?.connected === true);
+    assert.ok(view);
+  });
+
+  it('opening the seat on a second device replaces the first', async () => {
+    const { code, others } = await lobbyOf(2);
+    const [ben] = others;
+    const twin = await connect('twin');
+    twin.send({ t: 'hello', room: code, token: ben.welcome.token });
+    await twin.waitFor('welcome');
+    await ben.expectError('REPLACED');
+    ben.send({ t: 'kick', playerId: twin.id });
+    await ben.expectError('NOT_SEATED');
+  });
+
+  it('hello for a room that no longer exists: ROOM_NOT_FOUND', async () => {
+    const c = await connect();
+    c.send({ t: 'hello', room: 'QQQQ', token: 'a'.repeat(22) });
+    await c.expectError('ROOM_NOT_FOUND');
+  });
+});
+
+describe('expiry and restarts', () => {
+  it('an idle room is deleted after 30 minutes and its players are told', async () => {
+    const { host, code } = await lobbyOf(2);
+    const room = srv.rooms.get(code);
+    room.lastActivity -= 29 * 60 * 1000;
+    srv.rooms.sweep();
+    assert.ok(srv.rooms.get(code), 'not yet');
+    room.lastActivity -= 2 * 60 * 1000;
+    srv.rooms.sweep();
+    assert.equal(srv.rooms.get(code), null);
+    const closed = await host.waitFor('roomClosed');
+    assert.equal(closed.reason, 'expired');
+  });
+
+  it('activity keeps a room alive', async () => {
+    const { host, code } = await lobbyOf(2);
+    const room = srv.rooms.get(code);
+    room.lastActivity -= 31 * 60 * 1000;
+    host.send({ t: 'settings', settings: { voteSec: 60 } });
+    await host.waitForView((v) => v.room.settings.voteSec === 60);
+    srv.rooms.sweep();
+    assert.ok(srv.rooms.get(code));
+  });
+
+  it('a server shutdown tells everyone the room is gone', async () => {
+    const { host } = await lobbyOf(2);
+    const closing = host.waitFor('roomClosed');
+    await srv.close('serverRestart');
+    assert.equal((await closing).reason, 'serverRestart');
+    srv = await createServer({ host: '127.0.0.1' }); // afterEach closes this one
+  });
+});
+
+describe('bots', () => {
+  it('host can add and remove bots, which count as players', async () => {
+    const host = await createRoom('Ana');
+    for (let i = 0; i < 3; i++) host.send({ t: 'addBot' });
+    let view = await host.waitForView((v) => v.players.length === 4);
+    const bots = view.players.filter((p) => p.isBot);
+    assert.equal(bots.length, 3);
+    assert.ok(bots.every((b) => b.name.startsWith('🤖') && b.connected));
+    host.send({ t: 'removeBot', playerId: bots[0].id });
+    view = await host.waitForView((v) => v.players.length === 3);
+    host.send({ t: 'removeBot', playerId: host.id });
+    await host.expectError('BAD_TARGET');
+  });
+
+  it('cannot add bots past 8 players', async () => {
+    const host = await createRoom('Ana');
+    for (let i = 0; i < 7; i++) host.send({ t: 'addBot' });
+    await host.waitForView((v) => v.players.length === 8);
+    host.send({ t: 'addBot' });
+    await host.expectError('ROOM_FULL');
+  });
+
+  it('can be turned off on the server', async () => {
+    await srv.close();
+    await start({ enableBots: false });
+    const host = await createRoom('Ana');
+    assert.equal(host.view.room.botsEnabled, false);
+    host.send({ t: 'addBot' });
+    await host.expectError('BOTS_DISABLED');
+  });
+
+  it('confirm their role on their own once the game starts', async () => {
+    const host = await createRoom('Ana');
+    for (let i = 0; i < 3; i++) host.send({ t: 'addBot' });
+    await host.waitForView((v) => v.players.length === 4);
+    host.send({ t: 'start' });
+    const view = await host.waitForView((v) => v.phase.name === 'ROLE_REVEAL' && v.reveal.doneIds.length === 3);
+    assert.ok(!view.reveal.doneIds.includes(host.id));
+  });
+});
+
+describe('starting a game', () => {
+  it('needs 4 players and the host', async () => {
+    const { host, others } = await lobbyOf(3);
+    host.send({ t: 'start' });
+    await host.expectError('NOT_ENOUGH_PLAYERS');
+    const dee = await joinRoom(host.welcome.room, 'Dee');
+    others[0].send({ t: 'start' });
+    await others[0].expectError('NOT_HOST');
+    assert.ok(dee);
+  });
+
+  it('deals each player their own role and die, and nothing else', async () => {
+    const { host, all } = await lobbyOf(5);
+    host.send({ t: 'start' });
+    const views = await Promise.all(all.map((c) => c.waitForView((v) => v.phase.name === 'ROLE_REVEAL')));
+    const thieves = views.filter((v) => v.me.role === 'thief');
+    assert.equal(thieves.length, 1);
+    for (const [i, v] of views.entries()) {
+      assert.equal(v.me.id, all[i].id);
+      assert.ok(v.me.die >= 1 && v.me.die <= 6);
+    }
+    // verifyWire (afterEach) checks every message against what each player may know.
+  });
+
+  it('blocks late joiners once the game has started', async () => {
+    const { host, code } = await lobbyOf(4);
+    host.send({ t: 'start' });
+    await host.waitForView((v) => v.phase.name === 'ROLE_REVEAL');
+    const late = await connect('late');
+    late.send({ t: 'join', room: code, name: 'Zed' });
+    await late.expectError('GAME_IN_PROGRESS');
+  });
+
+  it('lobby-only actions are refused mid-game', async () => {
+    const { host, others } = await lobbyOf(4);
+    host.send({ t: 'start' });
+    await host.waitForView((v) => v.phase.name === 'ROLE_REVEAL');
+    for (const msg of [{ t: 'kick', playerId: others[0].id }, { t: 'addBot' }, { t: 'start' },
+      { t: 'settings', settings: { voteSec: 60 } }]) {
+      host.send(msg);
+      await host.expectError('WRONG_PHASE');
+    }
+  });
+
+  it('a player who refreshes mid-game gets their seat, role and die back', async () => {
+    const { host, code, others } = await lobbyOf(4);
+    host.send({ t: 'start' });
+    const [ben] = others;
+    const before = await ben.waitForView((v) => v.phase.name === 'ROLE_REVEAL');
+    const { token } = ben.welcome;
+    await ben.close();
+    const back = await connect('ben back');
+    back.send({ t: 'hello', room: code, token });
+    const view = await back.waitForView();
+    assert.deepEqual(view.me, before.me);
+  });
+
+  it('role confirmations go through the rules', async () => {
+    const { host, all } = await lobbyOf(4);
+    host.send({ t: 'start' });
+    await host.waitForView((v) => v.phase.name === 'ROLE_REVEAL');
+    all[1].send({ t: 'revealed' });
+    const view = await host.waitForView((v) => v.reveal?.doneIds.length === 1);
+    assert.deepEqual(view.reveal.doneIds, [all[1].id]);
+    all[1].send({ t: 'revealed' });
+    await all[1].expectError('ALREADY_DONE');
+    all[2].send({ t: 'vote', playerId: all[0].id });
+    await all[2].expectError('WRONG_PHASE');
+  });
+});
+
+describe('bad input', () => {
+  it('refuses non-JSON, unknown types, extra fields and bad ids', async () => {
+    const c = await connect();
+    for (const raw of ['not json', '[]', '{"t":"nope"}', '{"t":"ping","extra":1}', '{"t":"__proto__"}']) {
+      c.send(raw);
+      await c.expectError('BAD_MESSAGE');
+    }
+    c.send({ t: 'kick', playerId: 'x' });
+    await c.expectError('NOT_SEATED');
+    c.send({ t: 'kick', playerId: '../../etc' });
+    await c.expectError('BAD_MESSAGE');
+  });
+
+  it('drops oversized messages', async () => {
+    const c = await connect();
+    c.send(JSON.stringify({ t: 'create', name: 'x'.repeat(5000) }));
+    const code = await c.closed;
+    assert.equal(code, 1009);
+  });
+});

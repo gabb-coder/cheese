@@ -1,7 +1,7 @@
 // Random number sources for game/rules.js. Each is a function returning a float in [0, 1).
 // Rules never call Math.random directly, so tests can replay any deal from a seed.
 
-import { randomInt } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
 // mulberry32: small, fast, deterministic. For tests and debug replays only.
 export function seededRng(seed) {
@@ -17,5 +17,5 @@ export function seededRng(seed) {
 
 // Production source: unpredictable, so nobody can work out the deal from timing or seeds.
 export function cryptoRng() {
-  return randomInt(0, 2 ** 48) / 2 ** 48;
+  return randomBytes(6).readUIntBE(0, 6) / 2 ** 48; // 48 random bits -> [0, 1)
 }

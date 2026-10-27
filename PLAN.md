@@ -141,7 +141,7 @@ ignored.
 | `hello` | `token?`, `room?` | first message on every (re)connect; reclaims the seat if the token is valid |
 | `create` | `name` | Home |
 | `join` | `room`, `name` | Home / join link |
-| `settings` | `hourSec`, `discussionSec`, `voteSec`, `narratorOnHost` | host, lobby |
+| `settings` | `settings: { hourSec?, followerChoiceSec?, discussionSec?, voteSec?, narratorOnHost? }` | host, lobby |
 | `kick` | `playerId` | host, lobby |
 | `addBot` / `removeBot` | `playerId?` | host, lobby, bots enabled (§10) |
 | `start` | – | host, lobby |
@@ -162,7 +162,8 @@ ignored.
 | `welcome` | `token`, `room`, `playerId`. Store the token. Sent only to that socket. |
 | `view` | the full per-player view (below). Sent after every change *this player is entitled to see*. Reconnecting just means receiving a fresh `view`. |
 | `error` | `code` (`ROOM_NOT_FOUND`, `GAME_IN_PROGRESS`, `NAME_TAKEN`, `ROOM_FULL`, `NOT_ALLOWED`, `BAD_MESSAGE`, `KICKED`, …) and `message` |
-| `roomClosed` | `reason` (`expired`, `hostLeft`, `serverRestart`) |
+| `roomClosed` | `reason` (`expired`, `empty`, `serverRestart`) |
+| `left` | confirms a `leave`; the client forgets its seat |
 | `pong` | `serverNow` (also used to correct clock offset for timers) |
 
 ### The `view` object (the only place game data appears)
@@ -190,7 +191,9 @@ ignored.
 ```
 
 Player ids are random (not join order or role order), and the `players` list is sorted
-by name, so nothing can be read from ordering. Seat tokens never appear in a `view`.
+by name (people first, then bots), so nothing can be read from ordering. During the night
+(intro, hours, Follower steps) public changes such as someone reconnecting are held back
+until the next phase change, so a phone waking up for its hour can't reveal who is awake. Seat tokens never appear in a `view`.
 
 ---
 

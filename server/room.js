@@ -1,0 +1,358 @@
+// One game room: seats, seat tokens, sockets, lobby rules, bots, and per-player views.
+//
+// A "connection" (conn) is the server's wrapper around one WebSocket:
+//   { send(obj), room, seatId }
+// The room sets conn.room / conn.seatId when the conn takes a seat.
+//
+// Hidden information: the only game data that leaves this file is
+// rules.viewFor(game, seatId), sent to that seat's own connection.
+
+import { randomBytes } from 'node:crypto';
+import { RULE_OPTIONS, PHASE, createGame, applyIntent, viewFor } from '../game/rules.js';
+import { cryptoRng } from '../game/rng.js';
+import { nameKey, ERROR_TEXT } from './protocol.js';
+import { botIntent, BOT_NAMES } from './bots.js';
+
+export const DEFAULT_SETTINGS = Object.freeze({
+  hourSec: 15,
+  followerChoiceSec: 20,
+  discussionSec: 180,
+  voteSec: 45,
+  narratorOnHost: true,
+});
+
+export const LOBBY = 'LOBBY';
+
+// While players have their eyes closed, public changes (someone reconnecting, say) are held
+// back until the next phase change. Otherwise a phone waking up for its hour and
+// reconnecting would tell everyone who is awake.
+const QUIET_PHASES = new Set([
+  PHASE.NIGHT_INTRO, PHASE.HOUR, PHASE.FOLLOWER_CHOICE, PHASE.FOLLOWER_MEET,
+]);
+
+const GAME_INTENTS = new Set(['revealed', 'steal', 'peek', 'chooseFollower', 'vote']);
+
+export const errorMessage = (code, forType) => ({
+  t: 'error',
+  code,
+  message: ERROR_TEXT[code] ?? ERROR_TEXT.BAD_MESSAGE,
+  ...(forType ? { for: forType } : {}),
+});
+
+export class Room {
+  constructor(code, {
+    enableBots = true,
+    rng = cryptoRng,
+    now = Date.now,
+    timers = globalThis,
+    botDelayMs = 800,
+    onClose = () => {},
+    audit = null,
+  } = {}) {
+    this.code = code;
+    this.enableBots = enableBots;
+    this.rng = rng;
+    this.now = now;
+    this.timers = timers;
+    this.botDelayMs = botDelayMs;
+    this.onClose = onClose;
+    this.audit = audit; // tests only: (seatId, message, game) for every message sent to a seat
+
+    this.seats = new Map(); // seatId -> seat
+    this.tokens = new Map(); // token -> seatId
+    this.hostId = null;
+    this.game = null;
+    this.settings = { ...DEFAULT_SETTINGS };
+    this.lastActivity = now();
+    this.closed = false;
+    this.pendingPublic = false;
+    this.botTimer = null;
+  }
+
+  get phase() {
+    return this.game ? this.game.phase : LOBBY;
+  }
+
+  touch() {
+    this.lastActivity = this.now();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Seats
+
+  newSeatId() {
+    let id;
+    do id = randomBytes(5).toString('hex');
+    while (this.seats.has(id));
+    return id;
+  }
+
+  nameTaken(name) {
+    const key = nameKey(name);
+    return [...this.seats.values()].some((s) => nameKey(s.name) === key);
+  }
+
+  humans() {
+    return [...this.seats.values()].filter((s) => !s.isBot);
+  }
+
+  // Returns an error code, or null on success.
+  join(conn, name) {
+    if (this.phase !== LOBBY) return 'GAME_IN_PROGRESS';
+    if (this.seats.size >= RULE_OPTIONS.maxPlayers) return 'ROOM_FULL';
+    if (this.nameTaken(name)) return 'NAME_TAKEN';
+
+    const seat = {
+      id: this.newSeatId(),
+      name,
+      token: randomBytes(16).toString('base64url'),
+      isBot: false,
+      conn: null,
+      joinedAt: this.now(),
+    };
+    this.seats.set(seat.id, seat);
+    this.tokens.set(seat.token, seat.id);
+    if (!this.hostId) this.hostId = seat.id;
+    this.touch();
+    this.attach(seat, conn);
+    return null;
+  }
+
+  // A returning player (refresh, dropped connection, phone slept) takes their seat back.
+  reclaim(conn, token) {
+    const seat = this.seats.get(this.tokens.get(token));
+    if (!seat) return 'SEAT_NOT_FOUND';
+    this.touch();
+    this.attach(seat, conn);
+    return null;
+  }
+
+  attach(seat, conn) {
+    if (seat.conn && seat.conn !== conn) {
+      const old = seat.conn;
+      old.room = null;
+      old.seatId = null;
+      old.send(errorMessage('REPLACED'));
+    }
+    seat.conn = conn;
+    conn.room = this;
+    conn.seatId = seat.id;
+    conn.send({ t: 'welcome', room: this.code, playerId: seat.id, token: seat.token });
+    this.sendView(seat.id);
+    this.publicChange(seat.id);
+  }
+
+  // The socket closed. The seat stays so the player can come back with their token.
+  detach(conn) {
+    const seat = this.seats.get(conn.seatId);
+    conn.room = null;
+    conn.seatId = null;
+    if (!seat || seat.conn !== conn) return;
+    seat.conn = null;
+    this.publicChange();
+  }
+
+  removeSeat(seatId) {
+    const seat = this.seats.get(seatId);
+    if (!seat) return;
+    this.seats.delete(seatId);
+    if (seat.token) this.tokens.delete(seat.token);
+    if (seat.conn) {
+      seat.conn.room = null;
+      seat.conn.seatId = null;
+      seat.conn = null;
+    }
+    if (this.humans().length === 0) {
+      this.close('empty');
+      return;
+    }
+    if (this.hostId === seatId) this.migrateHost();
+  }
+
+  // Host goes to the longest-seated human, preferring one who is connected.
+  migrateHost() {
+    const candidates = this.humans().sort((a, b) =>
+      (b.conn ? 1 : 0) - (a.conn ? 1 : 0) || a.joinedAt - b.joinedAt);
+    this.hostId = candidates[0]?.id ?? null;
+  }
+
+  addBot() {
+    const taken = new Set([...this.seats.values()].map((s) => nameKey(s.name)));
+    let name = BOT_NAMES.find((n) => !taken.has(nameKey(`🤖 ${n}`)));
+    name = name ? `🤖 ${name}` : `🤖 Bot ${this.seats.size + 1}`;
+    const seat = { id: this.newSeatId(), name, token: null, isBot: true, conn: null, joinedAt: this.now() };
+    this.seats.set(seat.id, seat);
+  }
+
+  close(reason) {
+    if (this.closed) return;
+    this.closed = true;
+    if (this.botTimer) this.timers.clearTimeout(this.botTimer);
+    for (const seat of this.seats.values()) {
+      if (!seat.conn) continue;
+      const conn = seat.conn;
+      seat.conn = null;
+      conn.room = null;
+      conn.seatId = null;
+      conn.send({ t: 'roomClosed', reason });
+    }
+    this.onClose(this);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Intents from a seated connection
+
+  handle(conn, msg) {
+    const seat = this.seats.get(conn.seatId);
+    if (!seat) return conn.send(errorMessage('NOT_SEATED', msg.t));
+    this.touch();
+    const error = this.dispatch(seat, msg);
+    if (error) conn.send(errorMessage(error, msg.t));
+  }
+
+  dispatch(seat, msg) {
+    if (GAME_INTENTS.has(msg.t)) return this.gameIntent(seat.id, msg);
+
+    const isHost = seat.id === this.hostId;
+    const inLobby = this.phase === LOBBY;
+    switch (msg.t) {
+      case 'leave':
+        if (inLobby) {
+          const conn = seat.conn;
+          this.removeSeat(seat.id);
+          if (!this.closed) this.broadcastViews();
+          conn?.send({ t: 'left' });
+        } else {
+          // Mid-game the seat must stay in the game; the player just goes away.
+          const conn = seat.conn;
+          if (conn) this.detach(conn);
+          conn?.send({ t: 'left' });
+        }
+        return null;
+
+      case 'settings':
+        if (!isHost) return 'NOT_HOST';
+        if (!inLobby) return 'WRONG_PHASE';
+        Object.assign(this.settings, msg.settings);
+        this.broadcastViews();
+        return null;
+
+      case 'kick': {
+        if (!isHost) return 'NOT_HOST';
+        if (!inLobby) return 'WRONG_PHASE';
+        const target = this.seats.get(msg.playerId);
+        if (!target || target.id === seat.id) return 'BAD_TARGET';
+        const conn = target.conn;
+        this.removeSeat(target.id);
+        conn?.send(errorMessage('KICKED'));
+        this.broadcastViews();
+        return null;
+      }
+
+      case 'addBot':
+        if (!this.enableBots) return 'BOTS_DISABLED';
+        if (!isHost) return 'NOT_HOST';
+        if (!inLobby) return 'WRONG_PHASE';
+        if (this.seats.size >= RULE_OPTIONS.maxPlayers) return 'ROOM_FULL';
+        this.addBot();
+        this.broadcastViews();
+        return null;
+
+      case 'removeBot': {
+        if (!isHost) return 'NOT_HOST';
+        if (!inLobby) return 'WRONG_PHASE';
+        const target = this.seats.get(msg.playerId);
+        if (!target?.isBot) return 'BAD_TARGET';
+        this.removeSeat(target.id);
+        this.broadcastViews();
+        return null;
+      }
+
+      case 'start':
+        if (!isHost) return 'NOT_HOST';
+        if (!inLobby) return 'WRONG_PHASE';
+        if (this.seats.size < RULE_OPTIONS.minPlayers) return 'NOT_ENOUGH_PLAYERS';
+        this.game = createGame([...this.seats.keys()], this.rng);
+        this.broadcastViews();
+        return null;
+
+      default:
+        // endDiscussion and playAgain arrive with the day phase (Milestone 4).
+        return 'WRONG_PHASE';
+    }
+  }
+
+  gameIntent(seatId, intent) {
+    if (!this.game) return 'WRONG_PHASE';
+    const res = applyIntent(this.game, seatId, intent);
+    if (res.error) return res.error;
+    this.game = res.game;
+    this.broadcastViews(res.notify);
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Views
+
+  publicPlayers() {
+    return [...this.seats.values()]
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        connected: s.isBot || Boolean(s.conn),
+        isBot: s.isBot,
+        isHost: s.id === this.hostId,
+      }))
+      .sort((a, b) => Number(a.isBot) - Number(b.isBot) ||
+        nameKey(a.name).localeCompare(nameKey(b.name)) || (a.id < b.id ? -1 : 1));
+  }
+
+  // The complete message for one seat. Game data comes only from rules.viewFor.
+  viewMessage(seatId) {
+    const base = {
+      t: 'view',
+      serverNow: this.now(),
+      room: { code: this.code, hostId: this.hostId, settings: { ...this.settings }, botsEnabled: this.enableBots },
+      players: this.publicPlayers(),
+    };
+    if (!this.game) return { ...base, phase: { name: LOBBY }, me: { id: seatId } };
+    return { ...base, ...viewFor(this.game, seatId) };
+  }
+
+  sendView(seatId) {
+    const seat = this.seats.get(seatId);
+    if (!seat?.conn) return;
+    const msg = this.viewMessage(seatId);
+    this.audit?.(seatId, msg, this.game); // game states are immutable, so this is a snapshot
+    seat.conn.send(msg);
+  }
+
+  broadcastViews(ids = [...this.seats.keys()]) {
+    if (ids.length === this.seats.size) this.pendingPublic = false;
+    for (const id of ids) this.sendView(id);
+    if (ids.some((id) => this.seats.get(id)?.isBot)) this.scheduleBots();
+  }
+
+  // Something everyone can see changed (connected flags, host). `except` already has it.
+  publicChange(except) {
+    if (QUIET_PHASES.has(this.phase)) {
+      this.pendingPublic = true;
+      return;
+    }
+    this.broadcastViews([...this.seats.keys()].filter((id) => id !== except));
+  }
+
+  // Bots act a moment after their view changes, through the same rules as people.
+  scheduleBots() {
+    if (this.botTimer || !this.game || this.closed) return;
+    this.botTimer = this.timers.setTimeout(() => {
+      this.botTimer = null;
+      if (!this.game || this.closed) return;
+      for (const seat of this.seats.values()) {
+        if (!seat.isBot) continue;
+        const intent = botIntent(this.viewMessage(seat.id), this.rng);
+        if (intent) this.gameIntent(seat.id, intent);
+      }
+    }, this.botDelayMs);
+  }
+}

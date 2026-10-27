@@ -1,0 +1,182 @@
+/* Cheese Thief: cozy night theme. Mobile-first, portrait. */
+
+:root {
+  --bg: #1d1b3a;
+  --bg-deep: #141230;
+  --card: #2b2856;
+  --card-hi: #36326b;
+  --line: #4a457f;
+  --text: #fff4d6;
+  --muted: #b9b3e0;
+  --cheddar: #ffc53d;
+  --cheddar-dark: #e0a100;
+  --on-cheddar: #2a1d00;
+  --danger: #ff8a8a;
+  --ok: #8be0a8;
+  --radius: 18px;
+  --tap: 56px;
+  --gutter: 16px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; height: 100%; }
+
+body {
+  background: radial-gradient(120% 80% at 50% 0%, #2c2861 0%, var(--bg) 55%, var(--bg-deep) 100%) fixed;
+  color: var(--text);
+  font: 17px/1.45 ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+#app { min-height: 100dvh; }
+
+.screen {
+  max-width: 480px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 20px) var(--gutter) calc(env(safe-area-inset-bottom) + 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.screen.center { justify-content: center; align-items: center; text-align: center; }
+
+h1, h2, h3 { margin: 0; line-height: 1.15; }
+h1 { font-size: 2.1rem; letter-spacing: 0.01em; }
+h2 { font-size: 1.4rem; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 0.9rem; }
+.grow { flex: 1; }
+
+.logo { width: 132px; height: 132px; }
+.logo.small { width: 72px; height: 72px; }
+.bob { animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-6px); } }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+label { font-weight: 700; font-size: 0.95rem; color: var(--muted); }
+
+input[type="text"] {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 2px solid var(--line);
+  background: var(--bg-deep);
+  color: var(--text);
+  font: inherit;
+  font-size: 18px; /* >= 16px so iOS doesn't zoom */
+}
+input[type="text"]:focus { outline: none; border-color: var(--cheddar); }
+input.code { text-transform: uppercase; letter-spacing: 0.4em; text-align: center; font-weight: 800; font-size: 24px; }
+
+button {
+  min-height: var(--tap);
+  padding: 0 20px;
+  border: 0;
+  border-radius: 16px;
+  font: inherit;
+  font-weight: 800;
+  font-size: 1.1rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+button:active { transform: scale(0.97); }
+button:disabled { opacity: 0.45; cursor: default; transform: none; }
+button:focus-visible { outline: 3px solid var(--cheddar); outline-offset: 2px; }
+
+.btn-primary { background: var(--cheddar); color: var(--on-cheddar); box-shadow: 0 4px 0 var(--cheddar-dark); }
+.btn-secondary { background: var(--card-hi); color: var(--text); border: 2px solid var(--line); }
+.btn-ghost { background: transparent; color: var(--muted); }
+.btn-small { min-height: 44px; padding: 0 14px; font-size: 0.95rem; border-radius: 12px; }
+.btn-block { width: 100%; }
+
+.row { display: flex; gap: 10px; align-items: center; }
+.row > .grow { min-width: 0; }
+
+.divider { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 0.9rem; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+.error-text { color: var(--danger); font-weight: 700; min-height: 1.4em; }
+
+/* Lobby */
+.room-code {
+  font-size: 2.6rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  padding-left: 0.3em; /* balance the letter spacing */
+  color: var(--cheddar);
+  text-align: center;
+}
+.players { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 14px;
+  background: var(--card-hi);
+}
+.player .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.player.offline .name { opacity: 0.55; }
+.badge { font-size: 0.8rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--bg-deep); color: var(--muted); }
+.badge.you { background: var(--cheddar); color: var(--on-cheddar); }
+.kick { min-height: 40px; width: 40px; padding: 0; border-radius: 12px; background: transparent; color: var(--muted); font-size: 1.2rem; }
+
+.banner {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--card-hi);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  z-index: 10;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 20px);
+  transform: translateX(-50%);
+  max-width: calc(100% - 2 * var(--gutter));
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  z-index: 20;
+}
+
+.dots::after { content: ""; animation: dots 1.5s steps(4) infinite; }
+@keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+.hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
