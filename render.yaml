@@ -1,0 +1,20 @@
+# Render Blueprint: one free Web Service that serves the client, /healthz and the game
+# WebSocket. See DEPLOY.md for the step-by-step guide.
+services:
+  - type: web
+    name: cheese-thief # becomes https://cheese-thief.onrender.com (Render adds a suffix if taken)
+    runtime: node
+    plan: free
+    # region: oregon # default; pick the one closest to your friends (cannot be changed later):
+    #                  oregon, ohio, virginia, frankfurt or singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit # redeploy on every push to the connected branch
+    envVars:
+      # package.json allows any Node >= 20; this pins the version the game is tested on.
+      - key: NODE_VERSION
+        value: "22"
+      # Set to "false" to hide the "Add a bot" button.
+      - key: ENABLE_BOTS
+        value: "true"

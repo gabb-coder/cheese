@@ -1,0 +1,15 @@
+{
+  "name": "Cheese Thief",
+  "short_name": "Cheese Thief",
+  "description": "A cozy social deduction game for 4-8 friends, one phone each.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1d1b3a",
+  "theme_color": "#1d1b3a",
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
