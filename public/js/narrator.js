@@ -5,6 +5,7 @@
 import { prefs } from './storage.js';
 import { t, speechLang } from './i18n.js';
 import { toast } from './dom.js';
+import { serverNow } from './clock.js';
 
 export function stepKey(view) {
   return view ? `${view.phase.name}:${view.phase.hour ?? ''}` : '';
@@ -82,6 +83,7 @@ function playEvenOnSilent() {
 // A line the browser refused to speak until the player taps (some phones block speech
 // that doesn't follow a tap). It is spoken on the next tap.
 let waitingForTap = null;
+let lineActive = null; // the step's line while it is being spoken
 
 // Speak `text` aloud. `onResult(true|false)` reports whether the voice actually started.
 export function speak(text, onResult) {
@@ -104,8 +106,13 @@ export function speak(text, onResult) {
     reported = true;
     onResult?.(ok);
   };
-  u.onstart = () => report(true);
+  u.onstart = () => {
+    lineActive = u;
+    report(true);
+  };
+  u.onend = () => { if (lineActive === u) lineActive = null; };
   u.onerror = (e) => {
+    if (lineActive === u) lineActive = null;
     if (e.error === 'not-allowed') {
       waitingForTap = text;
       toast(t('narr.tapToHear'));
@@ -118,6 +125,36 @@ export function speak(text, onResult) {
   synth.resume(); // Chrome and Safari can get stuck "paused"
   // Some browsers drop a line queued in the same moment as cancel(), so wait a beat.
   setTimeout(() => synth.speak(u), 80);
+}
+
+// The countdown at the end of each hour: "10, 9, … 1", one number per second, timed
+// from the server's clock like the on-screen timer. A number never talks over the hour's
+// opening line; the count just joins in once the line has finished.
+let countdownTimers = [];
+
+export function stopCountdown() {
+  for (const timer of countdownTimers) clearTimeout(timer);
+  countdownTimers = [];
+}
+
+export function startCountdown(endsAt, from = 10) {
+  stopCountdown();
+  if (!synth) return;
+  for (let n = from; n >= 1; n--) {
+    const delay = endsAt - n * 1000 - serverNow();
+    if (delay < 0) continue;
+    countdownTimers.push(setTimeout(() => {
+      if (lineActive) return;
+      const u = new SpeechSynthesisUtterance(String(n));
+      const language = speechLang();
+      const voice = pickVoice(language);
+      if (voice) u.voice = voice;
+      u.lang = voice?.lang ?? language;
+      u.rate = 1.05;
+      synth.cancel(); // a number never queues up behind the last one
+      synth.speak(u);
+    }, delay));
+  }
 }
 
 // Called on every tap. iOS only allows speech after a tap, so the first one speaks a

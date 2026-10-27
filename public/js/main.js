@@ -6,7 +6,7 @@ import { Connection } from './net.js';
 import { session, prefs } from './storage.js';
 import { h, toast, swap } from './dom.js';
 import { syncServerTime, startCountdowns } from './clock.js';
-import { stepKey, lineFor, narratesHere, toggleNarration, speak, unlockSpeech } from './narrator.js';
+import { stepKey, lineFor, narratesHere, toggleNarration, speak, unlockSpeech, startCountdown, stopCountdown } from './narrator.js';
 import { unlockAudio, chime, buzz, wantWakeLock, retryWakeLock } from './cues.js';
 import { t, setLang, errorText } from './i18n.js';
 import * as connecting from './screens/connecting.js';
@@ -66,6 +66,7 @@ const actions = {
     toggleNarration(state.view);
     unlockSpeech();
     unlockAudio();
+    syncCountdown(state.view);
     render();
   },
   reconnect() {
@@ -75,6 +76,7 @@ const actions = {
     prefs.narration = on ? 'on' : 'off';
     unlockSpeech();
     unlockAudio();
+    syncCountdown(state.view);
     render();
   },
   setLanguage(code) {
@@ -110,6 +112,7 @@ function setMood(mood) {
 
 function forgetRoom(noticeKey) {
   setMood('evening');
+  stopCountdown();
   wantWakeLock(false);
   session.clear();
   state.view = null;
@@ -200,6 +203,9 @@ function onStep(prev, next) {
   setMood(NIGHT_STEPS.has(phase) ? 'night' : phase === 'DAWN' ? 'dawn' : DAY_STEPS.has(phase) ? 'morning' : 'evening');
   wantWakeLock(IN_GAME.has(phase));
 
+  // The hour's countdown follows the step, also after reconnecting mid-hour.
+  if (!prev || stepKey(prev) !== stepKey(next)) syncCountdown(next);
+
   // Only react to a step *change* seen live, not to the first view after (re)connecting.
   if (!prev || stepKey(prev) === stepKey(next)) return;
   if (NIGHT_STEPS.has(phase) || phase === 'DAWN') buzz(); // identical on every phone (D7)
@@ -207,6 +213,12 @@ function onStep(prev, next) {
     chime(phase === 'NIGHT_INTRO' ? 'night' : phase === 'DAWN' || phase === 'RESULTS' ? 'dawn' : 'hour');
     setTimeout(() => speak(lineFor(next)), 600);
   }
+}
+
+// The narrating phone counts down the last ten seconds of every hour of the night.
+function syncCountdown(view) {
+  if (view?.phase.name === 'HOUR' && view.phase.endsAt && narratesHere(view)) startCountdown(view.phase.endsAt);
+  else stopCountdown();
 }
 
 // Browsers only allow sound, speech and vibration after the player has tapped something.
