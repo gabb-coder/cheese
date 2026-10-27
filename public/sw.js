@@ -62,9 +62,15 @@ async function networkFirst(req) {
   const isPage = req.mode === 'navigate';
   const cached = () => cache.match(isPage ? '/' : req, { ignoreSearch: isPage });
 
-  const network = fetch(req).then((res) => {
-    if (res.ok) cache.put(isPage ? '/' : req, res.clone());
-    return res;
+  // Only cache what our own server sent. While a free Render service wakes up, Render
+  // answers with its own loading page, which must never replace the cached app.
+  const ours = (res) => res.ok && res.headers.get('X-Cheese-Thief') === '1';
+  const network = fetch(req).then(async (res) => {
+    if (ours(res)) {
+      cache.put(isPage ? '/' : req, res.clone());
+      return res;
+    }
+    return (await cached()) ?? res;
   });
   network.catch(() => {}); // if we answer from the cache first, a later failure is fine
   const timeout = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT_MS, null));

@@ -5,11 +5,12 @@ A private, mobile-first web version of the social deduction game *Cheese Thief*
 
 - Rules reference: [RULES.md](RULES.md) (owner decisions in §11)
 - Plan: [PLAN.md](PLAN.md)
+- **Deploying to Render: [DEPLOY.md](DEPLOY.md)**
 
 ## Status
-Milestone 5 of 6: the whole game is playable and robust to refreshes, dropped
-connections, sleeping phones, host disconnects, server restarts and cold starts.
-Still to come: the Render deployment files (6).
+All 6 milestones done: the whole game is playable, robust to refreshes, dropped
+connections, sleeping phones, host disconnects, server restarts and cold starts, and
+ready to deploy as a single Render Web Service (`render.yaml`, see DEPLOY.md).
 
 ## Run it locally
 Requires Node 20 or newer.

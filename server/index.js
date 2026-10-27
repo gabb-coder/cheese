@@ -20,6 +20,7 @@ export function createApp() {
   app.disable('x-powered-by');
   app.use((req, res, next) => {
     res.set({
+      'X-Cheese-Thief': '1', // lets the service worker tell our pages from a host's wake-up page
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
       'Content-Security-Policy':

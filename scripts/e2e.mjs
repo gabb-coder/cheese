@@ -5,7 +5,8 @@
 //
 // Scenarios: reload mid-night keeps your seat; server crash -> "Room expired";
 // graceful restart -> "Room expired" at once; host drops -> someone else becomes host;
-// cold start -> cached app shows "Waking up the mouse hole" and connects by itself.
+// cold start -> cached app shows "Waking up the mouse hole" and connects by itself, even
+// when the host answers with its own wake-up page meanwhile.
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -43,6 +44,7 @@ function stopServer(signal = 'SIGTERM') {
 
 const results = [];
 async function scenario(name, fn) {
+  if (process.env.E2E_ONLY && !name.includes(process.env.E2E_ONLY)) return; // e.g. E2E_ONLY="cold start"
   const browser = await chromium.launch();
   const errors = [];
   const newPlayer = async () => {
@@ -150,6 +152,31 @@ await scenario('cold start: cached app shows the waking-up screen, then connects
   await p.waitForSelector('text=Waking up the mouse hole', { timeout: 10000 });
   await startServer();
   await p.waitForSelector('#name', { timeout: 20000 });
+});
+
+await scenario("cold start behind the host's wake-up page: the cached app is shown, not that page", async (newPlayer) => {
+  const p = await newPlayer();
+  await p.goto(`${BASE}/`);
+  await p.evaluate(() => navigator.serviceWorker.ready);
+  await p.reload();
+  await p.waitForSelector('#name');
+  await stopServer('SIGKILL');
+  // Stand-in for Render's "service waking up" page: 200 OK, but not from our server.
+  const http = await import('node:http');
+  const fake = http.createServer((req, res) => res.writeHead(200, { 'Content-Type': 'text/html' }).end('<h1>HOST IS WAKING UP</h1>'));
+  await new Promise((resolve) => fake.listen(PORT, '127.0.0.1', resolve));
+  try {
+    await p.reload();
+    await p.waitForSelector('text=Waking up the mouse hole', { timeout: 10000 });
+    if (await p.locator('text=HOST IS WAKING UP').count()) throw new Error("showed the host's page");
+  } finally {
+    fake.closeAllConnections();
+    await new Promise((resolve) => fake.close(resolve));
+  }
+  await startServer();
+  await p.waitForSelector('#name', { timeout: 20000 });
+  await p.reload(); // the next load must still be our app (the fake page was never cached)
+  await p.waitForSelector('#name', { timeout: 10000 });
 });
 
 if (server) await stopServer();

@@ -1,6 +1,7 @@
 # Cheese Thief (digital): Plan
 
 Status: **approved by the owner** (with the rule decisions in §2), 2026-10-27.
+All six milestones in §11 are built; see README.md and DEPLOY.md.
 
 Source of truth for rules: [RULES.md](RULES.md), plus the owner's decisions recorded in
 §2 for everything RULES.md tagged [UNKNOWN]. All rule switches live in one place in code
