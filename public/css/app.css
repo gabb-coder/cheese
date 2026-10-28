@@ -678,6 +678,9 @@ body[data-mood="night"] button { box-shadow: 0 4px 0 #000; border-color: #000; }
 
 .awake-head { text-align: center; }
 .awake-head h1 { color: var(--cheddar); font-size: 2.1rem; }
+/* The Follower check: the three versions must line up, so headings stay on one line. */
+.follower-check .awake-head h1 { font-size: clamp(1.3rem, 6.4vw, 1.9rem); white-space: nowrap; }
+.follower-check .big-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .scene { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; color: var(--on-surface); }
 .scene .art { width: 170px; }
 .plate-stack { position: relative; width: 170px; }

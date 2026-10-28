@@ -133,9 +133,11 @@ table; `game/rules.js` implements exactly this.
 3. **Followers (all player counts, 4-8):** nobody becomes a Follower during the hours,
    not even a lone Sleepyhead who woke with the Thief. After hour 6 the Thief must choose
    exactly one Follower from **any** Sleepyhead (random if the Thief runs out of time).
-   Then a short silent meet-up: the Follower is told they are the Follower and who the
-   Thief is, and the two see each other. Nobody else learns who the Follower is until
-   the results.
+   Then everyone opens their eyes for a 5-second **Follower check**: each phone says
+   whether its player is the Follower, and the Follower's also says who the Thief is.
+   Then everyone closes their eyes except the Thief and the Follower, who get a
+   10-second silent meet-up to look at each other. Nobody else learns who the Follower
+   is until the results.
 4. Sleepyheads awake at the Thief's hour still see the Thief take the cheese.
 5. **Ties:** if the Thief is tied for the most votes, the Thief is caught and the
    Sleepyheads (not the Follower) win. [INFERRED, confirm] If nobody votes at all, the

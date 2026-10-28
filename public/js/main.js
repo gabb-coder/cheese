@@ -204,7 +204,7 @@ function handleError(msg) {
 // ---------------------------------------------------------------------------
 // Step changes: narration, chimes, vibration, wake lock, night mood
 
-const NIGHT_STEPS = new Set(['NIGHT_INTRO', 'HOUR', 'FOLLOWER_CHOICE', 'FOLLOWER_MEET']);
+const NIGHT_STEPS = new Set(['NIGHT_INTRO', 'HOUR', 'FOLLOWER_CHOICE', 'FOLLOWER_CHECK', 'FOLLOWER_MEET']);
 const DAY_STEPS = new Set(['DISCUSSION', 'VOTE', 'RESULTS']);
 const IN_GAME = new Set(['ROLE_REVEAL', ...NIGHT_STEPS, 'DAWN', 'DISCUSSION', 'VOTE']);
 

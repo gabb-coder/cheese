@@ -12,7 +12,7 @@ import { PHASE } from '../../game/rules.js';
 
 const ORDER = [
   PHASE.ROLE_REVEAL, PHASE.NIGHT_INTRO, PHASE.HOUR, PHASE.FOLLOWER_CHOICE,
-  PHASE.FOLLOWER_MEET, PHASE.DAWN, PHASE.DISCUSSION, PHASE.VOTE, PHASE.RESULTS,
+  PHASE.FOLLOWER_CHECK, PHASE.FOLLOWER_MEET, PHASE.DAWN, PHASE.DISCUSSION, PHASE.VOTE, PHASE.RESULTS,
 ];
 const at = (phase) => ORDER.indexOf(phase);
 
@@ -37,9 +37,11 @@ export function assertEntitled(game, me, view, ctx = '') {
   if (game.phase === PHASE.ROLE_REVEAL) allowed.push('reveal');
   if (game.phase === PHASE.VOTE) allowed.push('vote');
   if (game.phase === PHASE.RESULTS) allowed.push('results');
+  // The Thief from their own choice; everyone else from the Follower check, when each phone
+  // says whether its player is the Follower.
   const followerEntitled =
     (iAmThief && idx >= at(PHASE.FOLLOWER_CHOICE)) ||
-    (iAmFollower && idx >= at(PHASE.FOLLOWER_MEET));
+    (!iAmThief && idx >= at(PHASE.FOLLOWER_CHECK));
   if (followerEntitled) allowed.push('follower');
   onlyKeys(view, allowed, where('view'));
 
@@ -95,7 +97,8 @@ export function assertEntitled(game, me, view, ctx = '') {
     assert.deepEqual(view.reveal.doneIds, [...game.revealed].sort(), where('reveal.doneIds'));
   }
 
-  // follower: the Thief (their own choice) and the Follower (from the meet-up) only.
+  // follower: the Thief sees their own choice; from the check on, the Follower learns they
+  // are the Follower and who the Thief is, and everyone else only that they are not.
   if (view.follower) {
     if (iAmThief) {
       onlyKeys(view.follower, ['options', 'chosenId'], where('follower'));
@@ -105,8 +108,8 @@ export function assertEntitled(game, me, view, ctx = '') {
           where('follower.options'));
       }
     } else {
-      assert.ok(iAmFollower, where('follower section for a non-Follower'));
-      assert.deepEqual(view.follower, { isYou: true, thiefId: game.thiefId }, where('follower'));
+      const expected = iAmFollower ? { isYou: true, thiefId: game.thiefId } : { isYou: false };
+      assert.deepEqual(view.follower, expected, where('follower'));
     }
   }
 

@@ -121,7 +121,7 @@ describe('phase order', () => {
     }
     assert.deepEqual(seen, [
       'ROLE_REVEAL', 'NIGHT_INTRO', 'HOUR 1', 'HOUR 2', 'HOUR 3', 'HOUR 4', 'HOUR 5', 'HOUR 6',
-      'FOLLOWER_CHOICE', 'FOLLOWER_MEET', 'DAWN', 'DISCUSSION', 'VOTE', 'RESULTS',
+      'FOLLOWER_CHOICE', 'FOLLOWER_CHECK', 'FOLLOWER_MEET', 'DAWN', 'DISCUSSION', 'VOTE', 'RESULTS',
     ]);
   });
 
@@ -370,18 +370,21 @@ describe('Follower (owner decisions Q1, Q4, Q5)', () => {
     assert.equal(applyIntent(game, 'p1', { t: 'chooseFollower', playerId: 'p3' }).error, 'WRONG_PHASE');
   });
 
-  it('the Follower is not told during the choice, and is told who the Thief is at the meet-up', () => {
+  it('at the Follower check every phone says whether it is the Follower; only the Follower learns the Thief', () => {
     let game = toPhase(newGame([1, 2, 3, 4], 0), PHASE.FOLLOWER_CHOICE);
     game = act(game, 'p1', { t: 'chooseFollower', playerId: 'p3' });
-    assert.equal(viewFor(game, 'p3').follower, undefined);
+    assert.equal(viewFor(game, 'p3').follower, undefined, 'not told during the choice');
+    game = step(game);
+    assert.equal(game.phase, PHASE.FOLLOWER_CHECK);
+    assert.deepEqual(viewFor(game, 'p3').follower, { isYou: true, thiefId: 'p1' });
+    assert.deepEqual(viewFor(game, 'p1').follower, { chosenId: 'p3' });
+    for (const other of ['p2', 'p4']) assert.deepEqual(viewFor(game, other).follower, { isYou: false });
     game = step(game);
     assert.equal(game.phase, PHASE.FOLLOWER_MEET);
     assert.deepEqual(viewFor(game, 'p3').follower, { isYou: true, thiefId: 'p1' });
-    assert.deepEqual(viewFor(game, 'p1').follower, { chosenId: 'p3' });
-    for (const other of ['p2', 'p4']) assert.equal(viewFor(game, other).follower, undefined);
     game = toPhase(game, PHASE.VOTE);
     assert.deepEqual(viewFor(game, 'p3').follower, { isYou: true, thiefId: 'p1' }, 'kept into the day');
-    assert.equal(viewFor(game, 'p2').follower, undefined);
+    assert.deepEqual(viewFor(game, 'p2').follower, { isYou: false });
   });
 
   it('is picked at random from the Sleepyheads if the Thief runs out of time', () => {
@@ -608,8 +611,9 @@ describe('hidden information in views', () => {
           if (game.phase === PHASE.RESULTS || game.followerId === null) return;
           for (const id of game.playerIds) {
             if (id === game.thiefId || id === game.followerId) continue;
-            assert.equal(viewFor(game, id).follower, undefined);
-            assert.ok(!JSON.stringify(viewFor(game, id)).includes('follower'));
+            // At most "you are not the Follower" (the entitlement check covers every other field).
+            const { follower } = viewFor(game, id);
+            if (follower !== undefined) assert.deepEqual(follower, { isYou: false });
           }
         });
       }

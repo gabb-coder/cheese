@@ -10,7 +10,7 @@ import * as reveal from './reveal.js';
 import * as night from './night.js';
 import * as day from './day.js';
 
-const NIGHT = new Set(['NIGHT_INTRO', 'HOUR', 'FOLLOWER_CHOICE', 'FOLLOWER_MEET', 'DAWN']);
+const NIGHT = new Set(['NIGHT_INTRO', 'HOUR', 'FOLLOWER_CHOICE', 'FOLLOWER_CHECK', 'FOLLOWER_MEET', 'DAWN']);
 
 function screenFor(view) {
   if (view.phase.name === 'ROLE_REVEAL') return reveal;

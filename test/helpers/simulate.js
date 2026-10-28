@@ -55,6 +55,7 @@ export function simulateGame(n, seed, onStep = () => {}, deal) {
   // Follower choice: the Thief usually chooses, otherwise the timer picks.
   if (chance(0.75)) act(game.thiefId, { t: 'chooseFollower', playerId: someoneElse(game.thiefId) }, 'choose follower');
   next('follower choice over');
+  next('follower check over');
   next('meet-up over');
   next('dawn over');
   next('discussion over');

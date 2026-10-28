@@ -22,10 +22,11 @@ export function render({ state, actions }) {
     return view.follower?.options ? chooseFollower(view, actions)
       : asleep(view, t('night.shh'), t('night.choosing'));
   }
+  if (name === 'FOLLOWER_CHECK') return followerCheck(view);
   if (name === 'FOLLOWER_MEET') {
     if (view.follower?.isYou) return meetAsFollower(view);
     if (view.follower?.chosenId) return meetAsThief(view);
-    return asleep(view, t('night.shh'), t('night.choosing'));
+    return asleep(view, t('night.shh'), t('night.meeting'));
   }
   return dawn(view);
 }
@@ -142,6 +143,34 @@ function chooseFollower(view, actions) {
       : h('div', { class: 'picker' }, options.map((id) => playerButton(view, id, () => actions.send({ t: 'chooseFollower', playerId: id })))),
     h('div', { class: 'grow' }),
     countdown(view.phase.endsAt, t(chosenId ? 'night.meetIn' : 'night.autoPick')),
+  );
+}
+
+// Everyone is awake and looking at their phone. All three versions have the same layout,
+// so a glance at someone else's screen doesn't tell you who the Follower is.
+function followerCheck(view) {
+  const { follower } = view;
+  let title;
+  let label;
+  let who;
+  let name;
+  let hint;
+  if (follower?.isYou) {
+    const thief = playerOf(view, follower.thiefId);
+    [title, label, who, name, hint] = [t('night.checkFollower'), t('night.thiefIs'), thief, thief.name, t('night.checkFollowerHint')];
+  } else if (follower?.chosenId) {
+    const chosen = playerOf(view, follower.chosenId);
+    [title, label, who, name, hint] = [t('night.checkThief'), t('night.yourFollowerIs'), chosen, chosen.name, t('night.checkThiefHint')];
+  } else {
+    const me = playerOf(view, view.me.id);
+    [title, label, who, name, hint] = [t('night.checkNot'), t('night.youAreA'), me, t('role.sleepyhead.short'), t('night.checkNotHint')];
+  }
+  return h('section', { class: 'screen-inner awake follower-check' },
+    h('div', { class: 'awake-head' }, h('h1', {}, title)),
+    h('div', { class: 'card hero' }, h('p', { class: 'muted' }, label), avatar(who, 64), h('div', { class: 'big-name' }, name)),
+    h('p', { class: 'center muted' }, hint),
+    h('div', { class: 'grow' }),
+    countdown(view.phase.endsAt, t('night.closeIn')),
   );
 }
 

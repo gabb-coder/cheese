@@ -119,7 +119,8 @@ describe('game clock', () => {
       ['HOUR1', 15_000], ['HOUR2', 15_000], ['HOUR3', 15_000],
       ['HOUR4', 15_000], ['HOUR5', 15_000], ['HOUR6', 15_000],
       ['FOLLOWER_CHOICE', 20_000],
-      ['FOLLOWER_MEET', 8_000],
+      ['FOLLOWER_CHECK', 5_000],
+      ['FOLLOWER_MEET', 10_000],
       ['DAWN', 6_000],
       ['DISCUSSION', 180_000],
       ['VOTE', 45_000],
@@ -189,7 +190,7 @@ describe('game clock', () => {
   it('the vote ends as soon as everyone has voted', () => {
     const env = setup();
     start(env);
-    env.clock.tick(45_000 + 8_000 + 6 * 15_000 + 20_000 + 8_000 + 6_000 + 180_000);
+    env.clock.tick(45_000 + 8_000 + 6 * 15_000 + 20_000 + 5_000 + 10_000 + 6_000 + 180_000);
     assert.equal(env.room.phase, PHASE.VOTE);
     const ids = env.conns.map((c) => c.seatId);
     env.conns.forEach((c, i) => env.room.handle(c, { t: 'vote', playerId: ids[(i + 1) % ids.length] }));
@@ -268,7 +269,7 @@ describe('night: what goes over the wire', () => {
     }
   });
 
-  it('the Follower choice and meet-up reach only the Thief and the Follower', () => {
+  it('the Follower choice reaches only the Thief; at the check only the Follower learns who the Thief is', () => {
     for (let seed = 0; seed < 15; seed++) {
       const { env, game } = playNight(seed, 6);
       assert.equal(env.room.phase, PHASE.FOLLOWER_CHOICE);
@@ -279,9 +280,12 @@ describe('night: what goes over the wire', () => {
       env.room.handle(thief, { t: 'chooseFollower', playerId: pick.seatId });
       for (const c of env.conns) assert.equal(c.take().length, c === thief ? 1 : 0, c.label);
       env.clock.tick(17_000);
+      assert.equal(env.room.phase, PHASE.FOLLOWER_CHECK);
+      assert.deepEqual(pick.last.follower, { isYou: true, thiefId: game.thiefId });
+      for (const c of env.conns) if (c !== pick && c !== thief) assert.deepEqual(c.last.follower, { isYou: false });
+      env.clock.tick(5_000);
       assert.equal(env.room.phase, PHASE.FOLLOWER_MEET);
       assert.deepEqual(pick.last.follower, { isYou: true, thiefId: game.thiefId });
-      for (const c of env.conns) if (c !== pick && c !== thief) assert.equal(c.last.follower, undefined);
       env.verify();
     }
   });

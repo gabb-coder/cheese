@@ -21,6 +21,7 @@ export function lineFor(view) {
     case 'NIGHT_INTRO': return t('say.nightIntro');
     case 'HOUR': return t('say.hour', { hour });
     case 'FOLLOWER_CHOICE': return t('say.followerChoice');
+    case 'FOLLOWER_CHECK': return t('say.followerCheck');
     case 'FOLLOWER_MEET': return t('say.followerMeet');
     case 'DAWN': return t('say.dawn');
     case 'DISCUSSION': return t('say.discussion');

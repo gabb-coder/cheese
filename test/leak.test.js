@@ -17,7 +17,7 @@ import { TestClient } from './helpers/client.js';
 import { createAuditor } from './helpers/auditor.js';
 
 const TIME_SCALE = 0.004; // a 15 s hour lasts 60 ms
-const NIGHT = new Set([PHASE.NIGHT_INTRO, PHASE.HOUR, PHASE.FOLLOWER_CHOICE, PHASE.FOLLOWER_MEET]);
+const NIGHT = new Set([PHASE.NIGHT_INTRO, PHASE.HOUR, PHASE.FOLLOWER_CHOICE, PHASE.FOLLOWER_CHECK, PHASE.FOLLOWER_MEET]);
 
 let srv;
 let auditor;
@@ -159,7 +159,8 @@ describe('hidden information over the wire', () => {
           if (c.id === game.thiefId || c.id === game.followerId) continue;
           for (const m of views) {
             if (m.phase.name === PHASE.RESULTS) continue;
-            assert.equal(m.follower, undefined, c.label);
+            // At most "you are not the Follower", never who is.
+            if (m.follower !== undefined) assert.deepEqual(m.follower, { isYou: false }, c.label);
           }
         }
       }

@@ -106,7 +106,7 @@ for (const track of Object.values(TRACKS)) track.events.sort((a, b) => a[0] - b[
 
 // Which tune goes with which step of the game.
 export function trackFor(phase) {
-  if (['NIGHT_INTRO', 'HOUR', 'FOLLOWER_CHOICE', 'FOLLOWER_MEET'].includes(phase)) return 'night';
+  if (['NIGHT_INTRO', 'HOUR', 'FOLLOWER_CHOICE', 'FOLLOWER_CHECK', 'FOLLOWER_MEET'].includes(phase)) return 'night';
   if (['DAWN', 'DISCUSSION', 'RESULTS'].includes(phase)) return 'morning';
   if (phase === 'VOTE') return 'vote';
   return 'lobby'; // LOBBY and ROLE_REVEAL

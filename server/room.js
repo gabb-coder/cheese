@@ -29,7 +29,8 @@ export const LOBBY = 'LOBBY';
 export const FIXED_SECONDS = Object.freeze({
   [PHASE.ROLE_REVEAL]: 45, // ends early once everyone has confirmed
   [PHASE.NIGHT_INTRO]: 8,
-  [PHASE.FOLLOWER_MEET]: 8,
+  [PHASE.FOLLOWER_CHECK]: 5, // everyone looks: am I the Follower?
+  [PHASE.FOLLOWER_MEET]: 10, // the Thief and the Follower see each other, silently
   [PHASE.DAWN]: 6,
 });
 
@@ -44,7 +45,7 @@ const STEAL_DEADLINE_LEAD_SEC = 5;
 // back until the next phase change. Otherwise a phone waking up for its hour and
 // reconnecting would tell everyone who is awake.
 const QUIET_PHASES = new Set([
-  PHASE.NIGHT_INTRO, PHASE.HOUR, PHASE.FOLLOWER_CHOICE, PHASE.FOLLOWER_MEET,
+  PHASE.NIGHT_INTRO, PHASE.HOUR, PHASE.FOLLOWER_CHOICE, PHASE.FOLLOWER_CHECK, PHASE.FOLLOWER_MEET,
 ]);
 
 const GAME_INTENTS = new Set(['revealed', 'steal', 'peek', 'chooseFollower', 'vote']);

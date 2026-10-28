@@ -39,7 +39,7 @@ this app.
 | Q1 | Follower rules, including 6-8 players (§5, §9.1) | **One Follower at every player count, 4-8, always chosen by the Thief after hour 6** (see Q4). No separate 6-8 rule. | Owner |
 | Q2 | What players see when several share an hour without the Thief (§4) | They see each other (who is awake) and the cheese: still there if not yet stolen, gone if already stolen. Nobody can peek. | Owner |
 | Q3 | Does a Thief awake alone get an extra action? (§4) | No. The Thief only steals. | Owner (approved plan) |
-| Q4 | When is the Follower chosen and told? (§5) | **Nobody becomes a Follower during the hours**, even if exactly one Sleepyhead woke with the Thief. After hour 6 there is a short *Follower* step: the Thief must choose **any one Sleepyhead** (not only ones who woke with them). If time runs out, the server picks at random. Then a short silent *meet-up*: the chosen Follower is told they are the Follower and who the Thief is, and both see each other on screen. Everyone else sees the same "The Thief is choosing…" screen throughout. | Owner |
+| Q4 | When is the Follower chosen and told? (§5) | **Nobody becomes a Follower during the hours**, even if exactly one Sleepyhead woke with the Thief. After hour 6 there is a short *Follower* step: the Thief must choose **any one Sleepyhead** (not only ones who woke with them). If time runs out, the server picks at random. Then a 5-second *Follower check*: everyone opens their eyes, and each phone says whether its player is the Follower (the Follower's also names the Thief), in the same layout for everyone. Then a 10-second silent *meet-up*: everyone else closes their eyes while the Thief and the Follower look at each other. | Owner (revised) |
 | Q5 | Must the Thief take a Follower? (§5) | Yes, always exactly one (with 4+ players there are always at least 3 Sleepyheads). | Owner |
 | Q6 | Ties (§7) | If the Thief is tied for the most votes, the Thief counts as caught and the **Sleepyheads win**. | Owner (approved plan) |
 | Q7 | Self-votes, and can the Thief vote for their Follower? (§7) | No self-votes. Anyone else, the Follower included, can be voted for. | Owner (approved plan) |
@@ -60,7 +60,7 @@ App decisions (approved):
 |---|---|---|
 | D1 | Is the steal automatic? | On their hour the Thief taps "Take the cheese". If they don't, it happens automatically 5 s before the hour ends. Stealing is mandatory (RULES.md §4 "steals on the Thief's own hour"). |
 | D2 | Peek | A lone Sleepyhead may peek at **one** other player's die and sees only the number, never the role. It is optional. |
-| D3 | Timing | Every hour, the Follower step and the meet-up last exactly their set time, whatever anyone does. None of them ends early (no timing side channel). Defaults: hour 15 s, Follower choice 20 s, meet-up 8 s. |
+| D3 | Timing | Every hour, the Follower step and the meet-up last exactly their set time, whatever anyone does. None of them ends early (no timing side channel). Defaults: hour 15 s, Follower choice 20 s, Follower check 5 s, meet-up 10 s. |
 | D4 | Results screen | Reveals every role, every die, the Follower, every vote, and the winners. This mirrors flipping cards and pointing in the physical game. |
 | D5 | Missing votes | A player who hasn't voted when the vote timer (default 45 s) runs out abstains. |
 | D6 | Player disconnected during their hour | The game clock doesn't wait. A missed peek is skipped. A missed steal or Follower choice happens automatically (D1, Q4). |
@@ -104,8 +104,10 @@ LOBBY ──start (host, 4..maxPlayers)──▶ ROLE_REVEAL
 ROLE_REVEAL ──all confirmed or 45 s──▶ NIGHT_INTRO (8 s, "everyone close your eyes")
 NIGHT_INTRO ─▶ HOUR(1) ─▶ HOUR(2) ─▶ … ─▶ HOUR(6)      each exactly hourMs (default 15 s)
 HOUR(6) ─▶ FOLLOWER_CHOICE (20 s: Thief picks any Sleepyhead; random on timeout)
-        ─▶ FOLLOWER_MEET   (8 s: Thief and Follower see each other; others see the same
-                            "The Thief is choosing…" screen in both steps)
+        ─▶ FOLLOWER_CHECK  (5 s: everyone looks; each phone says whether you're the
+                            Follower, and the Follower's names the Thief)
+        ─▶ FOLLOWER_MEET   (10 s: Thief and Follower look at each other; everyone else
+                            has their eyes closed)
         ─▶ DAWN (5 s, "everyone wake up")
 DAWN ─▶ DISCUSSION (default 180 s; host may end early) ─▶ VOTE (all voted or 45 s)
 VOTE ─▶ RESULTS ──play again (host)──▶ LOBBY (same room, same seats, new deal)
@@ -123,8 +125,9 @@ Inside `HOUR(h)`, the server works out `awake = players whose die == h`:
 
 Phase changes are sent to everyone, because everyone hears the narration anyway. What
 happens *inside* an hour is sent only to the players awake in that hour. During
-`FOLLOWER_CHOICE` only the Thief gets updates. At the start of `FOLLOWER_MEET` the
-Thief and the Follower get theirs; nobody else learns whether or when a choice was made.
+`FOLLOWER_CHOICE` only the Thief gets updates; nobody else learns whether or when a choice
+was made. At the start of `FOLLOWER_CHECK` every player learns whether they are the
+Follower; only the Follower learns who the Thief is.
 
 ---
 
@@ -184,7 +187,8 @@ ignored.
   },
   follower?: {                                   // absent for everyone else
     options?: [ids], chosenId?,                  // Thief, from FOLLOWER_CHOICE
-    isYou?: true, thiefId?                       // the Follower, from FOLLOWER_MEET
+    isYou?: true, thiefId?                       // the Follower, from FOLLOWER_CHECK
+    isYou?: false                                // everyone else but the Thief, from FOLLOWER_CHECK
   },
   vote?:    { myVote?, votedIds },               // others' choices hidden until RESULTS
   results?: { roles, dice, followerId, votes, tally, thiefCaught, winners }
@@ -217,7 +221,7 @@ This is enforced in four layers:
      hour (they appear in `companions`, not as a die value)
    - Thief's identity: only if awake at the Thief's hour, or in RESULTS
    - Follower identity: only the Thief (from their choice) and the Follower (from
-     `FOLLOWER_MEET`), or anyone in RESULTS
+     `FOLLOWER_CHECK`), or anyone in RESULTS; others only learn they are not it
    - other players' votes: only in RESULTS
    - other seats' tokens: never
 4. **Indistinguishability tests.**

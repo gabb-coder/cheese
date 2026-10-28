@@ -25,6 +25,7 @@ export const PHASE = Object.freeze({
   NIGHT_INTRO: 'NIGHT_INTRO',
   HOUR: 'HOUR',
   FOLLOWER_CHOICE: 'FOLLOWER_CHOICE',
+  FOLLOWER_CHECK: 'FOLLOWER_CHECK',
   FOLLOWER_MEET: 'FOLLOWER_MEET',
   DAWN: 'DAWN',
   DISCUSSION: 'DISCUSSION',
@@ -37,6 +38,7 @@ const ORDER = [
   PHASE.NIGHT_INTRO,
   PHASE.HOUR,
   PHASE.FOLLOWER_CHOICE,
+  PHASE.FOLLOWER_CHECK,
   PHASE.FOLLOWER_MEET,
   PHASE.DAWN,
   PHASE.DISCUSSION,
@@ -225,6 +227,9 @@ export function advance(game, rng) {
         next.followerId = pick(sleepyheads(game), rng);
         next.followerPickedBy = 'random';
       }
+      next.phase = PHASE.FOLLOWER_CHECK;
+      break;
+    case PHASE.FOLLOWER_CHECK:
       next.phase = PHASE.FOLLOWER_MEET;
       break;
     case PHASE.FOLLOWER_MEET:
@@ -334,11 +339,11 @@ function followerView(game, me) {
     if (game.followerId !== null) view.chosenId = game.followerId;
     return view;
   }
-  // Owner decision Q4: the Follower is told at the meet-up, not before.
-  if (me === game.followerId && i >= phaseIndex(PHASE.FOLLOWER_MEET)) {
-    return { isYou: true, thiefId: game.thiefId };
-  }
-  return null;
+  // Owner decision Q4 (revised): everyone wakes for the Follower check; each phone says
+  // whether its player is the Follower, and the Follower's also names the Thief.
+  if (i < phaseIndex(PHASE.FOLLOWER_CHECK)) return null;
+  if (me === game.followerId) return { isYou: true, thiefId: game.thiefId };
+  return { isYou: false };
 }
 
 function resultsView(game) {
