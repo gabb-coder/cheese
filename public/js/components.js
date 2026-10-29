@@ -10,7 +10,7 @@ const SVG = 'http://www.w3.org/2000/svg';
 
 // Switching apps or locking the phone always hides an open card.
 document.addEventListener('visibilitychange', () => {
-  for (const card of document.querySelectorAll('.hold-card.open')) card.classList.remove('open');
+  for (const card of document.querySelectorAll('.hold-card.open, .cup-stage.open')) card.classList.remove('open');
 });
 
 function svg(tag, attrs = {}, children = []) {
@@ -113,7 +113,9 @@ export function dieFace(n, size = 72) {
 
 const ROLE_ART = { thief: 'role-thief', sleepyhead: 'role-sleepy' };
 
-// Press and hold to see your role and die; let go and it hides (PLAN.md §8).
+// Press and hold to see your role (and, on the small reminder, your die); let go and it
+// hides (PLAN.md §8). The big card at the start shows the role only: the die comes from
+// the dice cup.
 export function holdCard(me, { compact = false } = {}) {
   const role = (part) => t(`role.${me.role}.${part}`);
   const secret = compact
@@ -124,8 +126,6 @@ export function holdCard(me, { compact = false } = {}) {
     : h('div', { class: 'face secret' },
       art(ROLE_ART[me.role], 'role-art'),
       h('h2', {}, role('title')),
-      h('div', { class: 'die-row' }, dieFace(me.die, 60),
-        h('span', {}, t('card.wakeAtLabel'), h('br'), h('strong', {}, t('card.oclock', { hour: me.die })))),
       h('p', { class: 'small' }, role('hint')));
   const cover = compact
     ? h('div', { class: 'face cover' }, h('span', { class: 'badge-pill' }, t('card.holdCompact')))
@@ -137,7 +137,7 @@ export function holdCard(me, { compact = false } = {}) {
     class: `hold-card${compact ? ' compact' : ''}`,
     tabindex: 0,
     role: 'button',
-    'aria-label': t('card.aria'),
+    'aria-label': t(compact ? 'card.aria' : 'card.ariaRole'),
   }, h('div', { class: 'flip' }, cover, secret));
 
   const open = (e) => {
@@ -340,4 +340,17 @@ function openSettings(onLanguage, narration, music) {
   document.addEventListener('keydown', onKey);
   document.body.append(backdrop);
   languages.querySelector('[aria-pressed="true"]')?.focus();
+}
+
+// The wooden dice cup, upside down on the table (reveal.js puts the die under it).
+export function woodenCup() {
+  const ink = '#2b1d14';
+  return svg('svg', { viewBox: '0 0 160 170', 'aria-hidden': 'true' }, [
+    svg('path', { d: 'M22 160 L40 22 Q80 10 120 22 L138 160 Q80 172 22 160 Z', fill: '#c8894e', stroke: ink, 'stroke-width': 4, 'stroke-linejoin': 'round' }),
+    svg('path', { d: 'M46 64 Q42 100 38 134', fill: 'none', stroke: '#e2a76a', 'stroke-width': 5, 'stroke-linecap': 'round', opacity: 0.8 }),
+    svg('path', { d: 'M64 64 Q62 100 60 134 M98 64 Q101 100 104 134 M114 66 Q118 100 121 132', fill: 'none', stroke: '#a8693a', 'stroke-width': 2.5, 'stroke-linecap': 'round' }),
+    svg('path', { d: 'M36 46 Q80 56 124 46 L126 58 Q80 68 34 58 Z', fill: '#8a5230', stroke: ink, 'stroke-width': 3, 'stroke-linejoin': 'round' }),
+    svg('path', { d: 'M25 138 Q80 150 135 138 L137 152 Q80 164 23 152 Z', fill: '#8a5230', stroke: ink, 'stroke-width': 3, 'stroke-linejoin': 'round' }),
+    svg('ellipse', { cx: 80, cy: 22, rx: 40, ry: 9, fill: '#a8693a', stroke: ink, 'stroke-width': 3 }),
+  ]);
 }

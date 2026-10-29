@@ -86,11 +86,21 @@ async function roomWith(newPlayer, names) {
   return { pages, code };
 }
 
+// Role card, then the dice cup: tap to shake, then confirm.
+async function rollAndConfirm(p) {
+  await p.click('text=Next: roll your die');
+  await p.click('.cup-stage');
+  await p.click("text=I've memorized it");
+}
+
+// The die under this player's cup.
+const dieUnderCup = (p) => p.evaluate(() => document.querySelector('.cup-die svg').getAttribute('aria-label').match(/\d/)[0]);
+
 async function startGame(pages) {
   await pages[0].click('text=Start the game');
   for (const p of pages) {
-    await p.waitForSelector("text=I've memorized it");
-    await p.click("text=I've memorized it");
+    await p.waitForSelector('text=Next: roll your die');
+    await rollAndConfirm(p);
   }
 }
 
@@ -104,9 +114,15 @@ await scenario('reloading keeps your seat, role and die (during reveal and mid-n
   await p.reload();
   await p.waitForSelector('.hold-card', { timeout: 15000 });
   if ((await card()) !== before) throw new Error('role card changed after reloading during the reveal');
-  const die = before.match(/(\d) o'clock/)[1];
+  await p.click('text=Next: roll your die');
+  const die = await dieUnderCup(p);
+  await p.reload();
+  await p.waitForSelector('.hold-card', { timeout: 15000 });
+  await p.click('text=Next: roll your die');
+  if ((await dieUnderCup(p)) !== die) throw new Error('die changed after reloading during the reveal');
+  await p.click('text=See my card again');
 
-  for (const page of pages) await page.click("text=I've memorized it");
+  for (const page of pages) await rollAndConfirm(page);
   await p.waitForSelector('.hour-track');
   await p.reload();
   await p.waitForSelector('.hour-track', { timeout: 15000 }); // back in the night

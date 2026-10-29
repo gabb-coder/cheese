@@ -42,6 +42,32 @@ export function chime(kind) {
   }
 }
 
+// A die rattling in a wooden cup, then the cup thudding onto the table. Plays on this
+// phone when its player taps the cup (everyone rolls during the same step).
+export function rattle(seconds = 0.9) {
+  if (!audio || audio.state !== 'running') return;
+  const noise = audio.createBuffer(1, Math.round(audio.sampleRate * 0.05), audio.sampleRate);
+  const data = noise.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const knock = (t, hz, peak, length) => {
+    const src = audio.createBufferSource();
+    src.buffer = noise;
+    const band = audio.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = hz;
+    band.Q.value = 4;
+    const gain = audio.createGain();
+    gain.gain.setValueAtTime(peak, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + length);
+    src.connect(band).connect(gain).connect(audio.destination);
+    src.start(t);
+    src.stop(t + length + 0.01);
+  };
+  const t0 = audio.currentTime + 0.02;
+  for (let t = 0; t < seconds; t += 0.05 + Math.random() * 0.07) knock(t0 + t, 2200 + Math.random() * 1600, 0.5, 0.035);
+  knock(t0 + seconds + 0.05, 420, 0.9, 0.12); // the cup lands
+}
+
 export function buzz() {
   try {
     navigator.vibrate?.(70); // Android; iOS Safari has no Vibration API

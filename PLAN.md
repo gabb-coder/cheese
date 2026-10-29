@@ -101,7 +101,7 @@ App decisions (approved):
 
 ```
 LOBBY ──start (host, 4..maxPlayers)──▶ ROLE_REVEAL
-ROLE_REVEAL ──all confirmed or 45 s──▶ NIGHT_INTRO (8 s, "everyone close your eyes")
+ROLE_REVEAL ──all confirmed or 60 s (role card, then the dice cup)──▶ NIGHT_INTRO (8 s, "everyone close your eyes")
 NIGHT_INTRO ─▶ HOUR(1) ─▶ HOUR(2) ─▶ … ─▶ HOUR(6)      each exactly hourMs (default 15 s)
 HOUR(6) ─▶ FOLLOWER_CHOICE (20 s: Thief picks any Sleepyhead; random on timeout)
         ─▶ FOLLOWER_CHECK  (5 s: everyone looks; each phone says whether you're the
