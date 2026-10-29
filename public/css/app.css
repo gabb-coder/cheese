@@ -919,8 +919,43 @@ details.card .notes { border: 0; padding: 8px 0 0; box-shadow: none; background:
   70%, 100% { transform: none; }
 }
 /* On Home the hole is set into the bottom edge of the screen, behind the content. */
-.home-hole { position: fixed; right: 14px; bottom: 0; z-index: -1; width: 84px; pointer-events: none; }
+.screen.home { padding-bottom: calc(env(safe-area-inset-bottom) + 84px); }
+button.home-hole {
+  position: absolute; right: 14px; bottom: 0; z-index: 2; width: 84px;
+  min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; line-height: 0;
+}
+button.home-hole:active:not(:disabled) { transform: none; box-shadow: none; }
 .home-hole .art { filter: none; }
+/* Tapped: the mouse comes all the way out, and hops on every tap. */
+.home-hole.awake .peek-mouse, .home-hole.awake .peek-eyes { animation: none; transform: none; }
+.home-hole.awake.hop .peek-mouse { animation: mouse-hop 0.45s cubic-bezier(.3,1.6,.5,1); }
+@keyframes mouse-hop { 0% { transform: translateY(24px); } 60% { transform: translateY(-6px); } }
+
+/* The Bible verse the mouse shows: a speech bubble above its hole. */
+.verse-bubble {
+  position: absolute; right: 12px; bottom: 88px; z-index: 3;
+  width: min(340px, calc(100% - 24px));
+  padding: 16px 18px 12px;
+  background: var(--cream); color: var(--ink);
+  border: 3px solid var(--ink); border-radius: 20px;
+  box-shadow: 0 5px 0 var(--ink), var(--soft-shadow);
+  transform-origin: 85% 100%;
+  animation: pop-in 0.35s cubic-bezier(.2,1.4,.4,1) both;
+}
+.verse-bubble::after {
+  content: ""; position: absolute; right: 36px; bottom: -14px; width: 22px; height: 22px;
+  background: var(--cream); border-right: 3px solid var(--ink); border-bottom: 3px solid var(--ink);
+  transform: rotate(45deg);
+}
+.verse-bubble blockquote { margin: 0 26px 8px 0; font: 600 1.08rem/1.5 var(--font-display); white-space: pre-line; }
+.verse-bubble .sc { font-variant: small-caps; }
+.verse-ref { font-weight: 800; text-align: right; color: #7a5536; }
+.verse-hint { font-size: 0.8rem; font-weight: 700; color: #7a6656; margin-top: 4px; }
+.verse-notice { font-size: 0.62rem; line-height: 1.35; color: #8a7666; margin-top: 6px; }
+.verse-close {
+  position: absolute; top: 8px; right: 8px; min-height: 32px; width: 32px; padding: 0; border-radius: 50%;
+  font-size: 0.9rem; border-width: 2px; box-shadow: 0 2px 0 var(--ink); background: var(--cream-2);
+}
 
 /* Screens slide and fade into each other (dom.js swap). Browsers with View Transitions
    cross over from the old screen; others just slide the new one in. */

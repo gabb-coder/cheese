@@ -56,6 +56,13 @@ morning and results, and a ticking clock for the vote. They play on the narrator
 default, duck while the narrator speaks, and follow only the step of the game, so they give
 nothing away. Any phone can switch the music on or off in ⚙️.
 
+## Easter egg
+Tap the little mouse in the bottom-right corner of the Home screen for a Bible verse; each
+tap shows another (all 22 come round before any repeats). English is the NIV, Chinese the
+Chinese New Version (Simplified, CNVS). The verses in `public/js/verses.js` were taken
+from BibleGateway's text of each translation, not retyped, and are shown with each
+publisher's copyright notice.
+
 ## Languages
 English and Simplified Chinese (Mandarin, 奶酪大盗). Each phone picks its own language with
 the ⚙️ button (Home, Lobby and the in-game top bar); it starts in Chinese when the phone's

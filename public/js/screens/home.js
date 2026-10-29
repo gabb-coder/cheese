@@ -2,8 +2,9 @@
 
 import { h } from '../dom.js';
 import { art, peekingMouse, settingsButton } from '../components.js';
-import { t } from '../i18n.js';
+import { t, lang } from '../i18n.js';
 import { prefs } from '../storage.js';
+import { VERSES, NOTICES } from '../verses.js';
 
 let errorEl = null;
 
@@ -52,7 +53,7 @@ export function render({ state, actions }) {
   const joinRow = h('div', { class: 'row' }, h('div', { class: 'grow' }, code), joinBtn);
 
   update({ state });
-  return h('section', { class: 'screen' },
+  return h('section', { class: 'screen home' },
     h('div', { class: 'corner' }, settingsButton({ onLanguage: actions.setLanguage })),
     h('div', { class: 'hero' },
       art('logo', 'logo bob'),
@@ -68,10 +69,63 @@ export function render({ state, actions }) {
     ),
     errorEl,
     h('p', { class: 'footnote' }, t('home.footnote')),
-    h('div', { class: 'home-hole', 'aria-hidden': 'true' }, peekingMouse('', { wall: false })),
+    verseMouse(),
   );
 }
 
 export function update({ state }) {
   if (state.homeError) errorEl.textContent = state.homeError;
+}
+
+// Easter egg: tap the mouse in the corner for a Bible verse, a different one every tap.
+// Verses come round in a shuffled order, so none repeats until all have been shown.
+let deck = [];
+let lastShown = -1;
+
+function nextVerse() {
+  if (!deck.length) {
+    deck = VERSES.map((_, i) => i);
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    if (deck[deck.length - 1] === lastShown) [deck[0], deck[deck.length - 1]] = [deck[deck.length - 1], deck[0]];
+  }
+  lastShown = deck.pop();
+  return VERSES[lastShown];
+}
+
+// Verse text with its printed line breaks (CSS) and small capitals (⟪LORD⟫).
+const verseText = (text) => text.split(/(⟪[^⟫]*⟫)/).filter(Boolean)
+  .map((part) => (part.startsWith('⟪') ? h('span', { class: 'sc' }, part.slice(1, -1)) : part));
+
+function verseMouse() {
+  const mouse = h('button', { class: 'home-hole', 'aria-label': t('verse.open'), 'aria-expanded': 'false' },
+    peekingMouse('', { wall: false }));
+  let bubble = null;
+  const close = () => {
+    bubble?.remove();
+    bubble = null;
+    mouse.classList.remove('awake', 'hop');
+    mouse.setAttribute('aria-expanded', 'false');
+  };
+  mouse.addEventListener('click', () => {
+    const verse = nextVerse();
+    const zh = lang() === 'zh';
+    const card = h('div', { class: 'verse-bubble', role: 'status' },
+      h('button', { class: 'verse-close', 'aria-label': t('verse.close'), onClick: close }, '✕'),
+      h('blockquote', { lang: zh ? 'zh-CN' : 'en' }, verseText(zh ? verse.zh : verse.en)),
+      h('p', { class: 'verse-ref' }, t('verse.ref', { ref: zh ? verse.zhRef : verse.ref })),
+      h('p', { class: 'verse-hint' }, t('verse.tapAgain')),
+      h('p', { class: 'verse-notice' }, NOTICES[zh ? 'zh' : 'en']));
+    if (bubble) bubble.replaceWith(card);
+    else mouse.after(card);
+    bubble = card;
+    // The mouse pops out of its hole, with a little hop on every tap.
+    mouse.classList.remove('hop');
+    void mouse.offsetWidth;
+    mouse.classList.add('awake', 'hop');
+    mouse.setAttribute('aria-expanded', 'true');
+  });
+  return mouse;
 }

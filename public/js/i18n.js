@@ -46,6 +46,10 @@ const EN = {
   'home.footnote': '4–8 players · one phone each',
   'home.needName': 'Pick a name first.',
   'home.codeLength': 'Room codes have 4 letters.',
+  'verse.open': 'A mouse in its hole. Tap for a Bible verse.',
+  'verse.close': 'Close',
+  'verse.ref': '{ref} (NIV)',
+  'verse.tapAgain': 'Tap the mouse again for another verse.',
 
   // Connecting
   'connecting.title': 'Waking up the mouse hole',
@@ -306,6 +310,10 @@ const ZH = {
   'home.footnote': '4–8 名玩家 · 每人一部手机',
   'home.needName': '请先取个名字。',
   'home.codeLength': '房间码是 4 个字母。',
+  'verse.open': '洞里的小老鼠。点一下看一句经文。',
+  'verse.close': '关闭',
+  'verse.ref': '{ref}（新译本）',
+  'verse.tapAgain': '再点一下小老鼠，换一句经文。',
 
   'connecting.title': '正在唤醒老鼠洞',
   'connecting.slow': '没人玩的时候服务器会打个盹，唤醒最多需要一分钟，我们会一直重试。',
