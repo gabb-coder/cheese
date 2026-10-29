@@ -1,7 +1,8 @@
 // Lobby: room code and share link, who's here, host controls (kick, bots, start).
 
 import { h, toast, calm } from '../dom.js';
-import { avatar, settingsButton } from '../components.js';
+import { avatar, settingsButton, qrButton } from '../components.js';
+import { openGuide } from '../guide.js';
 import { t, duration } from '../i18n.js';
 import { narratesHere, musicHere, testVoice } from '../narrator.js';
 
@@ -163,6 +164,7 @@ export function render({ state, actions }) {
       ? h('button', { class: 'btn-primary btn-block btn-big', disabled: need > 0, onClick: () => actions.send({ t: 'start' }) },
         need > 0 ? t('lobby.need', { n: need }) : t('lobby.start'))
       : h('p', { class: 'muted center' }, h('span', { class: 'dots' }, t('lobby.waiting', { name: host?.name ?? t('lobby.theHost') }))),
+    h('button', { class: 'btn-ghost', onClick: () => openGuide() }, t('guide.open')),
     h('button', { class: 'btn-ghost', onClick: () => actions.leave() }, t('lobby.leave')),
   );
 
@@ -174,6 +176,7 @@ export function render({ state, actions }) {
       ),
       h('div', { class: 'row' },
         h('button', { class: 'btn-secondary btn-small', onClick: () => shareLink(view.room.code) }, t('lobby.invite')),
+        qrButton(view.room.code),
         settingsButton({ onLanguage: actions.setLanguage, narration: { on: narratesHere(view), set: actions.setNarration },
           music: { on: musicHere(view), set: actions.setMusic } })),
     ),

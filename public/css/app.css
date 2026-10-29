@@ -391,6 +391,58 @@ button:focus-visible { outline: 4px solid color-mix(in srgb, var(--cheddar) 75%,
   animation: fade-in 0.2s ease both;
 }
 .sheet { width: min(100%, 440px); animation: sheet-up 0.35s cubic-bezier(.2,1.2,.4,1) both; }
+/* Lobby QR code */
+.qr-frame { align-self: center; padding: 10px; background: #fff; border: 3px solid var(--ink); border-radius: 18px; line-height: 0; }
+.qr-frame .qr { width: min(240px, 64vw); height: auto; }
+.qr-code { text-align: center; font: 700 2rem var(--font-display); letter-spacing: 0.3em; padding-left: 0.3em; }
+
+/* How to play */
+.guide {
+  position: fixed; inset: 0; z-index: 45;
+  display: grid; place-items: center; grid-template-columns: minmax(0, 440px); justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 12px) var(--gutter) calc(env(safe-area-inset-bottom) + 12px);
+  background: rgb(8 6 30 / 0.6);
+  animation: fade-in 0.2s ease both;
+}
+/* min-width: 0 stops the row of slides from stretching the card off the screen. */
+.guide-box { width: 100%; min-width: 0; max-height: 100%; overflow-y: auto; gap: 10px; animation: sheet-up 0.35s cubic-bezier(.2,1.2,.4,1) both; }
+.guide-track {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
+  scrollbar-width: none; margin: 0 -18px;
+}
+.guide-track::-webkit-scrollbar { display: none; }
+.guide-slide {
+  flex: 0 0 100%; scroll-snap-align: center; scroll-snap-stop: always;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
+  padding: 0 22px; min-width: 0;
+}
+.guide-slide h2 { font-size: 1.4rem; }
+.guide-slide p { white-space: pre-line; color: var(--on-surface-muted); font-weight: 700; font-size: 0.98rem; }
+.guide-picture { height: 150px; display: grid; place-items: center; }
+/* The pictures are SVGs with no size of their own, so give each a height. */
+.guide-picture > .art { height: 130px; width: auto; max-width: 200px; }
+.guide-night {
+  width: 136px; height: 136px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 40%, #262a63, #0e1028); border: 3px solid var(--ink);
+}
+.guide-night .art { width: 96px; filter: none; }
+.guide-pair { display: flex; align-items: flex-end; gap: 6px; }
+.guide-pair .art { height: 120px; width: auto; max-width: 130px; }
+.guide-cup { position: relative; display: flex; align-items: flex-end; gap: 10px; }
+.guide-cup .cup-art { width: 110px; height: 118px; }
+.guide-cup .cup-art svg { width: 100%; height: 100%; }
+.guide-dots { display: flex; justify-content: center; gap: 8px; }
+.guide-dot {
+  min-height: 0; width: 10px; height: 10px; padding: 0; border-radius: 50%; border-width: 2px; box-shadow: none;
+  background: var(--surface-2);
+}
+.guide-dot[aria-current="true"] { background: var(--cheddar); width: 26px; border-radius: 999px; }
+.guide-dot:active:not(:disabled) { transform: none; box-shadow: none; }
+.guide-close {
+  min-height: 36px; width: 36px; padding: 0; border-radius: 50%; font-size: 0.95rem; border-width: 2px;
+  box-shadow: 0 2px 0 var(--ink); background: var(--cream-2);
+}
+
 .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .choice { background: var(--surface-2); color: var(--on-surface); }
 .choice[aria-pressed="true"] { background: var(--cheddar); color: var(--ink); }
