@@ -31,6 +31,13 @@ const EN = {
   'settings.off': 'Off',
   'settings.music': 'Music · 音乐',
   'settings.musicHere': 'Play background music on this phone',
+  'endGame.label': 'Host',
+  'endGame.button': '⏹  End game',
+  'endGame.title': 'End the game?',
+  'endGame.text': "Everyone goes back to the waiting room, and this round won't count.",
+  'endGame.confirm': 'Yes, end the game',
+  'endGame.cancel': 'Keep playing',
+  'endGame.ended': 'The host ended the game.',
 
   // Home
   'home.titleA': 'Cheese ',
@@ -347,6 +354,13 @@ const ZH = {
   'settings.off': '关',
   'settings.music': '音乐 · Music',
   'settings.musicHere': '用这台手机播放背景音乐',
+  'endGame.label': '房主',
+  'endGame.button': '⏹  结束游戏',
+  'endGame.title': '结束这局游戏？',
+  'endGame.text': '所有人都会回到等候室，这一局不计分。',
+  'endGame.confirm': '确定结束',
+  'endGame.cancel': '继续游戏',
+  'endGame.ended': '房主结束了这局游戏。',
 
   'home.titleA': '奶酪',
   'home.titleB': '大盗',

@@ -57,5 +57,6 @@ export function update(ctx) {
   }
   narrBtnSlot.replaceChildren(narrationButton(narratesHere(view), () => ctx.actions.toggleNarration()),
     settingsButton({ onLanguage: ctx.actions.setLanguage, narration: { on: narratesHere(view), set: ctx.actions.setNarration },
-      music: { on: musicHere(view), set: ctx.actions.setMusic } }));
+      music: { on: musicHere(view), set: ctx.actions.setMusic },
+      onEndGame: view.room.hostId === view.me.id ? () => ctx.actions.send({ t: 'endGame' }) : null }));
 }

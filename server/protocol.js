@@ -79,6 +79,7 @@ const SCHEMA = {
   endDiscussion: {},
   vote: { playerId: [id, true] },
   playAgain: {},
+  endGame: {},
   leave: {},
   ping: {},
 };

@@ -461,7 +461,32 @@ describe('host disconnects (PLAN.md §7)', () => {
     assert.equal(env.room.phase, 'LOBBY');
   });
 
-  it('players can pick their mouse in the lobby only, and everyone sees it', () => {
+  it('the host can end a game part-way: everyone is back in the lobby and the round does not count', () => {
+    const env = setup({ humans: 4, bots: 1 });
+    start(env);
+    for (const c of env.conns) env.room.handle(c, { t: 'revealed' });
+    env.clock.tick(8_000 + 2_000); // into hour 1
+    const [host, p2] = env.conns;
+    env.room.handle(p2, { t: 'endGame' });
+    assert.equal(p2.last.code, 'NOT_HOST');
+    assert.equal(env.room.phase, PHASE.HOUR);
+    env.room.handle(host, { t: 'endGame' });
+    assert.equal(env.room.phase, 'LOBBY');
+    for (const c of env.conns) {
+      assert.deepEqual(c.last.phase, { name: 'LOBBY' }, c.label);
+      assert.equal(c.last.results, undefined, 'nothing revealed');
+    }
+    assert.equal(host.last.room.round, 0, 'the unfinished round is not counted');
+    assert.deepEqual(host.last.room.scores, {});
+    assert.equal(env.clock.timers.size, 0, 'no timers left running');
+    env.room.handle(host, { t: 'endGame' });
+    assert.equal(host.last.code, 'WRONG_PHASE', 'nothing to end in the lobby');
+    start(env);
+    assert.equal(env.room.phase, PHASE.ROLE_REVEAL, 'a new game can start straight away');
+    env.verify();
+  });
+
+    it('players can pick their mouse in the lobby only, and everyone sees it', () => {
     const env = setup({ humans: 4 });
     const [a, b] = env.conns;
     env.room.handle(a, { t: 'look', fur: 4, hat: 'party' });

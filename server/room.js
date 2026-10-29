@@ -356,12 +356,16 @@ export class Room {
         // Same room, same seats (bots included), new deal on the next start.
         if (!isHost) return 'NOT_HOST';
         if (this.phase !== PHASE.RESULTS) return 'WRONG_PHASE';
-        this.clearClock();
-        if (this.botTimer) this.timers.clearTimeout(this.botTimer);
-        this.botTimer = null;
-        this.game = null;
-        this.endsAt = null;
-        this.broadcastViews();
+        this.backToLobby();
+        return null;
+
+      case 'endGame':
+        // The host stops a game part-way: everyone goes back to the lobby, nothing is
+        // revealed, and the unfinished round doesn't count on the scoreboard.
+        if (!isHost) return 'NOT_HOST';
+        if (inLobby) return 'WRONG_PHASE';
+        if (this.scoredRound !== this.round) this.round -= 1;
+        this.backToLobby();
         return null;
 
       default:
@@ -369,7 +373,16 @@ export class Room {
     }
   }
 
-  gameIntent(seatId, intent) {
+  backToLobby() {
+    this.clearClock();
+    if (this.botTimer) this.timers.clearTimeout(this.botTimer);
+    this.botTimer = null;
+    this.game = null;
+    this.endsAt = null;
+    this.broadcastViews();
+  }
+
+    gameIntent(seatId, intent) {
     if (!this.game) return 'WRONG_PHASE';
     const res = applyIntent(this.game, seatId, intent);
     if (res.error) return res.error;

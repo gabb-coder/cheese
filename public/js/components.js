@@ -347,8 +347,27 @@ function gearIcon() {
 }
 
 // `narration` and `music` are { on, set(on) } when in a room, so this phone can turn them on or off.
-export function settingsButton({ onLanguage, narration = null, music = null }) {
-  return h('button', { class: 'icon-btn', 'aria-label': t('settings.open'), onClick: () => openSettings(onLanguage, narration, music) }, gearIcon());
+// `onEndGame` is given to the host during a game: the sheet then offers to end it.
+export function settingsButton({ onLanguage, narration = null, music = null, onEndGame = null }) {
+  return h('button', {
+    class: 'icon-btn', 'aria-label': t('settings.open'), onClick: () => openSettings(onLanguage, narration, music, onEndGame),
+  }, gearIcon());
+}
+
+// Ending the game is for everyone, so it asks first.
+function confirmEndGame(onEndGame) {
+  openSheet(t('endGame.title'), (close) => [
+    h('h2', { class: 'center' }, t('endGame.title')),
+    h('p', { class: 'center' }, t('endGame.text')),
+    h('button', {
+      class: 'btn-danger btn-block',
+      onClick: () => {
+        close();
+        onEndGame();
+      },
+    }, t('endGame.confirm')),
+    h('button', { class: 'btn-secondary btn-block', onClick: close }, t('endGame.cancel')),
+  ]).querySelector('.btn-secondary')?.focus();
 }
 
 // An On/Off pair for a { on, set } setting.
@@ -387,7 +406,7 @@ export function openSheet(label, build) {
   return backdrop;
 }
 
-function openSettings(onLanguage, narration, music) {
+function openSettings(onLanguage, narration, music, onEndGame) {
   const sheet = openSheet(t('settings.title'), (close) => [
     h('h2', {}, t('settings.title')),
     h('div', { class: 'label' }, t('settings.language')),
@@ -403,6 +422,8 @@ function openSettings(onLanguage, narration, music) {
     music ? h('div', { class: 'label' }, t('settings.music')) : null,
     music ? h('p', { class: 'small' }, t('settings.musicHere')) : null,
     music ? onOff(music) : null,
+    onEndGame ? h('div', { class: 'label' }, t('endGame.label')) : null,
+    onEndGame ? h('button', { class: 'btn-danger btn-block', onClick: () => confirmEndGame(onEndGame) }, t('endGame.button')) : null,
     h('button', { class: 'btn-primary btn-block', onClick: close }, t('settings.done')),
   ]);
   sheet.querySelector('.choices [aria-pressed="true"]')?.focus();
