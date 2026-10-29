@@ -44,8 +44,14 @@ export function assertWireMessage(msg, ctx) {
 
   onlyKeys(msg, ['t', 'serverNow', 'room', 'players', ...GAME_KEYS], where('view'));
   assert.equal(typeof msg.serverNow, 'number');
-  onlyKeys(msg.room, ['code', 'hostId', 'settings', 'botsEnabled'], where('room'));
+  onlyKeys(msg.room, ['code', 'hostId', 'settings', 'botsEnabled', 'round', 'scores'], where('room'));
   onlyKeys(msg.room.settings, SETTINGS_KEYS, where('room.settings'));
+  assert.equal(typeof msg.room.round, 'number', where('room.round'));
+  for (const score of Object.values(msg.room.scores)) onlyKeys(score, ['wins', 'played'], where('room.scores[]'));
+  // The scoreboard never changes before a game's results are out.
+  if (ctx.game && ctx.game.phase !== 'RESULTS') {
+    for (const score of Object.values(msg.room.scores)) assert.ok(score.played < msg.room.round, where('scores before the results'));
+  }
   assert.ok(Array.isArray(msg.players), where('players'));
   for (const p of msg.players) onlyKeys(p, ['id', 'name', 'connected', 'isBot', 'isHost'], where('players[]'));
 

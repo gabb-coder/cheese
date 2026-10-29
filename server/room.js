@@ -9,7 +9,7 @@
 
 import { randomBytes } from 'node:crypto';
 import {
-  RULE_OPTIONS, PHASE, createGame, applyIntent, advance, stealDeadline, canEndEarly, viewFor,
+  RULE_OPTIONS, PHASE, createGame, applyIntent, advance, stealDeadline, canEndEarly, viewFor, outcome,
 } from '../game/rules.js';
 import { cryptoRng } from '../game/rng.js';
 import { nameKey, ERROR_TEXT } from './protocol.js';
@@ -82,6 +82,9 @@ export class Room {
     this.tokens = new Map(); // token -> seatId
     this.hostId = null;
     this.game = null;
+    this.round = 0; // games started in this room
+    this.scores = new Map(); // seatId -> { wins, played }, kept across "play again"
+    this.scoredRound = 0;
     this.settings = { ...DEFAULT_SETTINGS };
     this.lastActivity = now();
     this.closed = false;
@@ -182,6 +185,7 @@ export class Room {
     const seat = this.seats.get(seatId);
     if (!seat) return;
     this.seats.delete(seatId);
+    this.scores.delete(seatId);
     if (seat.token) this.tokens.delete(seat.token);
     if (seat.conn) {
       seat.conn.room = null;
@@ -330,6 +334,7 @@ export class Room {
         if (!inLobby) return 'WRONG_PHASE';
         if (this.seats.size < RULE_OPTIONS.minPlayers) return 'NOT_ENOUGH_PLAYERS';
         this.game = createGame([...this.seats.keys()], this.rng);
+        this.round += 1;
         this.startClock();
         this.broadcastViews();
         return null;
@@ -413,8 +418,27 @@ export class Room {
     const res = advance(this.game, this.rng);
     if (res.error) return;
     this.game = res.game;
+    if (this.game.phase === PHASE.RESULTS) this.recordScores();
     this.startClock();
     this.broadcastViews();
+  }
+
+  // The scoreboard: once per game, everyone who played gets a game, the winners a win.
+  recordScores() {
+    if (this.scoredRound === this.round) return;
+    this.scoredRound = this.round;
+    const { winners } = outcome(this.game);
+    for (const id of this.game.playerIds) {
+      if (!this.seats.has(id)) continue;
+      const score = this.scores.get(id) ?? { wins: 0, played: 0 };
+      score.played += 1;
+      if (winners.includes(id)) score.wins += 1;
+      this.scores.set(id, score);
+    }
+  }
+
+  publicScores() {
+    return Object.fromEntries([...this.scores].filter(([id]) => this.seats.has(id)).map(([id, s]) => [id, { ...s }]));
   }
 
   // ---------------------------------------------------------------------------
@@ -438,7 +462,14 @@ export class Room {
     const base = {
       t: 'view',
       serverNow: this.now(),
-      room: { code: this.code, hostId: this.hostId, settings: { ...this.settings }, botsEnabled: this.enableBots },
+      room: {
+        code: this.code,
+        hostId: this.hostId,
+        settings: { ...this.settings },
+        botsEnabled: this.enableBots,
+        round: this.round,
+        scores: this.publicScores(), // only changes when a game ends, so it gives nothing away
+      },
       players: this.publicPlayers(),
     };
     if (!this.game) return { ...base, phase: { name: LOBBY }, me: { id: seatId } };

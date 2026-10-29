@@ -76,6 +76,88 @@ function countUp(list) {
   seen.observe(list);
 }
 
+// The night, replayed hour by hour on the results screen: who woke, when the cheese went,
+// who saw it and who peeked. Rows appear one after another once the card is on screen.
+function nightReplay(view) {
+  const r = view.results;
+  const thiefHour = r.dice[r.thiefId];
+  const strong = (text) => h('strong', {}, text);
+  const rows = [1, 2, 3, 4, 5, 6].map((hour) => {
+    const awake = view.players.filter((p) => r.dice[p.id] === hour);
+    const lines = [];
+    const line = (ico, ...text) => lines.push(h('p', { class: 'replay-line' }, h('span', { class: 'ico' }, ico), h('span', {}, ...text)));
+    if (!awake.length) {
+      line('💤', t('replay.nobody'));
+    } else if (hour === thiefHour) {
+      line('🧀', tx('replay.stole', { name: strong(nameOf(view, r.thiefId)) }));
+      const witnesses = awake.filter((p) => p.id !== r.thiefId).map((p) => p.id);
+      line('👀', witnesses.length ? t('replay.seenBy', { names: listNames(view, witnesses) }) : t('replay.unseen'));
+    } else {
+      line(hour < thiefHour ? '🧀' : '🍽️', t(hour < thiefHour ? 'replay.stillThere' : 'replay.gone'));
+    }
+    for (const [peeker, peek] of Object.entries(r.peeks ?? {})) {
+      if (r.dice[peeker] !== hour) continue;
+      line('🔍', tx('replay.peeked', { name: strong(nameOf(view, peeker)), target: strong(nameOf(view, peek.playerId)), die: peek.die }));
+    }
+    const mice = awake.map((p) => {
+      const a = avatar(p, 30);
+      if (p.id === r.thiefId) a.classList.add('is-thief');
+      return a;
+    });
+    return h('li', { class: `replay-hour${hour === thiefHour ? ' theft' : ''}${awake.length ? '' : ' empty'}` },
+      h('span', { class: 'replay-badge' }, String(hour)),
+      h('div', { class: 'replay-body' }, mice.length ? h('div', { class: 'replay-mice' }, mice) : null, lines));
+  });
+  rows.push(h('li', { class: 'replay-hour follower-row' },
+    h('span', { class: 'replay-badge' }, '🤝'),
+    h('div', { class: 'replay-body' }, h('p', { class: 'replay-line' }, h('span', {}, r.followerPickedBy === 'random'
+      ? tx('replay.randomFollower', { follower: strong(nameOf(view, r.followerId)) })
+      : tx('replay.chose', { thief: strong(nameOf(view, r.thiefId)), follower: strong(nameOf(view, r.followerId)) }))))));
+
+  const play = () => {
+    for (const row of rows) row.classList.remove('shown');
+    if (calm()) {
+      for (const row of rows) row.classList.add('shown');
+      return;
+    }
+    rows.forEach((row, i) => setTimeout(() => row.classList.add('shown'), 150 + i * 650));
+  };
+  const list = h('ol', { class: 'replay' }, rows);
+  if ('IntersectionObserver' in window && !calm()) {
+    const seen = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      seen.disconnect();
+      play();
+    }, { threshold: 0.2 });
+    seen.observe(list);
+  } else {
+    play();
+  }
+  return h('div', { class: 'card' },
+    h('div', { class: 'row' }, h('h3', { class: 'grow' }, t('replay.title')),
+      h('button', { class: 'btn-secondary btn-small', onClick: play }, t('replay.again'))),
+    list);
+}
+
+// Wins across the rounds played in this room; this round's winners get a "+1".
+function scoreboard(view) {
+  const scores = view.room.scores ?? {};
+  const rows = view.players.filter((p) => scores[p.id])
+    .map((p) => ({ p, ...scores[p.id] }))
+    .sort((a, b) => b.wins - a.wins || a.p.name.localeCompare(b.p.name));
+  if (!rows.length) return null;
+  const top = rows[0].wins;
+  const justWon = view.results?.winners ?? [];
+  return h('div', { class: 'card' },
+    h('div', { class: 'row' }, h('h3', { class: 'grow' }, t('score.title')),
+      h('span', { class: 'muted small' }, t('score.rounds', { n: view.room.round }))),
+    h('ol', { class: 'scoreboard' }, rows.map(({ p, wins }) => h('li', { class: wins === top && top > 0 ? 'top' : '' },
+      avatar(p, 34),
+      h('span', { class: 'n' }, p.name, wins === top && top > 0 ? ' 👑' : ''),
+      justWon.includes(p.id) ? h('span', { class: 'plus' }, '+1') : null,
+      h('span', { class: 'wins' }, t('score.wins', { n: wins }))))));
+}
+
 const playerOf = (view, id) => view.players.find((p) => p.id === id) ?? { id, name: t('someone') };
 
 function discussion({ state, actions }) {
@@ -194,6 +276,7 @@ function results({ state, actions }) {
         h('div', { class: 'who' }, h('span', { class: 'label' }, t('results.followerLabel')), h('strong', {}, follower.name),
           h('span', { class: 'how' }, t(r.followerPickedBy === 'random' ? 'results.random' : 'results.chosen')))),
     ),
+    nightReplay(view),
     h('div', { class: 'card' },
       h('h3', {}, t('results.votes')),
       tally,
@@ -206,6 +289,7 @@ function results({ state, actions }) {
         h('div', { class: 'who' }, h('span', { class: 'n' }, p.name), h('span', { class: 'r' }, `${roleOf(p)}${r.winners.includes(p.id) ? t('results.won') : ''}`)),
         dieFace(r.dice[p.id], 30)))),
     ),
+    scoreboard(view),
     h('div', { class: 'actions' },
       isHost
         ? h('button', { class: 'btn-primary btn-block btn-big', onClick: () => actions.send({ t: 'playAgain' }) }, t('results.again'))

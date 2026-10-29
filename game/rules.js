@@ -354,6 +354,8 @@ function resultsView(game) {
     followerPickedBy: game.followerPickedBy,
     roles: Object.fromEntries(game.playerIds.map((id) => [id, roleOf(game, id)])),
     dice: { ...game.dice },
+    // Who peeked at whose die, for the night replay (the game is over, so all is told).
+    peeks: Object.fromEntries(Object.entries(game.peeks).map(([id, peek]) => [id, { ...peek }])),
     votes: { ...game.votes },
     counts,
     leaders,
