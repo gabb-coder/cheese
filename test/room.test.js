@@ -103,7 +103,7 @@ describe('game clock', () => {
     const { clock, room } = env;
     start(env);
     const t0 = clock.now();
-    assert.equal(env.host.last.phase.endsAt, t0 + 45_000);
+    assert.equal(env.host.last.phase.endsAt, t0 + 60_000);
 
     const steps = [];
     let guard = 0;
@@ -114,7 +114,7 @@ describe('game clock', () => {
       clock.tick(ms);
     }
     assert.deepEqual(steps, [
-      ['ROLE_REVEAL', 45_000],
+      ['ROLE_REVEAL', 60_000],
       ['NIGHT_INTRO', 8_000],
       ['HOUR1', 15_000], ['HOUR2', 15_000], ['HOUR3', 15_000],
       ['HOUR4', 15_000], ['HOUR5', 15_000], ['HOUR6', 15_000],
@@ -154,7 +154,7 @@ describe('game clock', () => {
       const env = setup({ seed });
       const game = start(env);
       const thief = env.byId(game.thiefId);
-      env.clock.tick(45_000 + 8_000);
+      env.clock.tick(60_000 + 8_000);
       while (env.room.game.hour !== game.dice[game.thiefId]) env.clock.tick(15_000);
       env.room.handle(thief, { t: 'steal' });
       assert.notEqual(env.room.game.stolenAtHour, null);
@@ -171,7 +171,7 @@ describe('game clock', () => {
       const env = setup({ seed, humans: 6 });
       const game = start(env);
       const tHour = game.dice[game.thiefId];
-      env.clock.tick(45_000 + 8_000 + (tHour - 1) * 15_000);
+      env.clock.tick(60_000 + 8_000 + (tHour - 1) * 15_000);
       assert.equal(env.room.game.hour, tHour);
       for (const c of env.conns) c.take();
       env.clock.tick(9_999);
@@ -190,7 +190,7 @@ describe('game clock', () => {
   it('the vote ends as soon as everyone has voted', () => {
     const env = setup();
     start(env);
-    env.clock.tick(45_000 + 8_000 + 6 * 15_000 + 20_000 + 5_000 + 10_000 + 6_000 + 180_000);
+    env.clock.tick(60_000 + 8_000 + 6 * 15_000 + 20_000 + 5_000 + 10_000 + 6_000 + 180_000);
     assert.equal(env.room.phase, PHASE.VOTE);
     const ids = env.conns.map((c) => c.seatId);
     env.conns.forEach((c, i) => env.room.handle(c, { t: 'vote', playerId: ids[(i + 1) % ids.length] }));

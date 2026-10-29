@@ -27,7 +27,7 @@ export const LOBBY = 'LOBBY';
 
 // Steps whose length isn't a host setting (seconds).
 export const FIXED_SECONDS = Object.freeze({
-  [PHASE.ROLE_REVEAL]: 45, // ends early once everyone has confirmed
+  [PHASE.ROLE_REVEAL]: 60, // role card and dice cup; ends early once everyone has confirmed
   [PHASE.NIGHT_INTRO]: 8,
   [PHASE.FOLLOWER_CHECK]: 5, // everyone looks: am I the Follower?
   [PHASE.FOLLOWER_MEET]: 10, // the Thief and the Follower see each other, silently
