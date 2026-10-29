@@ -5,6 +5,7 @@ import { art, peekingMouse, settingsButton } from '../components.js';
 import { t, lang } from '../i18n.js';
 import { prefs } from '../storage.js';
 import { VERSES, NOTICES } from '../verses.js';
+import { openGuide } from '../guide.js';
 
 let errorEl = null;
 
@@ -67,6 +68,7 @@ export function render({ state, actions }) {
         ? [h('label', { for: 'code' }, t('home.roomCode')), joinRow, h('div', { class: 'divider' }, t('home.or')), createBtn]
         : [createBtn, h('div', { class: 'divider' }, t('home.orJoin')), joinRow]),
     ),
+    h('button', { class: 'btn-secondary btn-block', onClick: () => openGuide() }, t('guide.open')),
     errorEl,
     h('p', { class: 'footnote' }, t('home.footnote')),
     verseMouse(),

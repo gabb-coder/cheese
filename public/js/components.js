@@ -5,6 +5,7 @@ import { h } from './dom.js';
 import { serverNow } from './clock.js';
 import { t, tx, joinList, LANGS, lang } from './i18n.js';
 import { testVoice } from './narrator.js';
+import qrcode from './vendor/qrcode.mjs';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -312,34 +313,87 @@ function choices(items, isOn, onPick) {
   return h('div', { class: 'choices' }, buttons);
 }
 
-function openSettings(onLanguage, narration, music) {
+// A sheet that slides up over the page. Escape, a tap on the backdrop or close() dismisses
+// it; `build(close)` returns its contents.
+function openSheet(label, build) {
   document.querySelector('.sheet-backdrop')?.remove();
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
   const close = () => {
     backdrop.remove();
     document.removeEventListener('keydown', onKey);
   };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
-  const languages = choices(LANGS.map((l) => [l.code, l.label, { lang: l.speech }]), (code) => code === lang(), (code) => {
-    if (code === lang()) return;
-    close();
-    onLanguage(code);
-  });
   const backdrop = h('div', { class: 'sheet-backdrop', onClick: (e) => { if (e.target === backdrop) close(); } },
-    h('div', { class: 'card sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('settings.title') },
-      h('h2', {}, t('settings.title')),
-      h('div', { class: 'label' }, t('settings.language')),
-      languages,
-      h('div', { class: 'label' }, t('settings.narrator')),
-      narration ? h('p', { class: 'small' }, t('settings.narrateHere')) : null,
-      narration ? onOff(narration) : null,
-      h('button', { class: 'btn-secondary btn-small', onClick: () => testVoice() }, t('narr.test')),
-      music ? h('div', { class: 'label' }, t('settings.music')) : null,
-      music ? h('p', { class: 'small' }, t('settings.musicHere')) : null,
-      music ? onOff(music) : null,
-      h('button', { class: 'btn-primary btn-block', onClick: close }, t('settings.done'))));
+    h('div', { class: 'card sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': label }, build(close)));
   document.addEventListener('keydown', onKey);
   document.body.append(backdrop);
-  languages.querySelector('[aria-pressed="true"]')?.focus();
+  return backdrop;
+}
+
+function openSettings(onLanguage, narration, music) {
+  const sheet = openSheet(t('settings.title'), (close) => [
+    h('h2', {}, t('settings.title')),
+    h('div', { class: 'label' }, t('settings.language')),
+    choices(LANGS.map((l) => [l.code, l.label, { lang: l.speech }]), (code) => code === lang(), (code) => {
+      if (code === lang()) return;
+      close();
+      onLanguage(code);
+    }),
+    h('div', { class: 'label' }, t('settings.narrator')),
+    narration ? h('p', { class: 'small' }, t('settings.narrateHere')) : null,
+    narration ? onOff(narration) : null,
+    h('button', { class: 'btn-secondary btn-small', onClick: () => testVoice() }, t('narr.test')),
+    music ? h('div', { class: 'label' }, t('settings.music')) : null,
+    music ? h('p', { class: 'small' }, t('settings.musicHere')) : null,
+    music ? onOff(music) : null,
+    h('button', { class: 'btn-primary btn-block', onClick: close }, t('settings.done')),
+  ]);
+  sheet.querySelector('.choices [aria-pressed="true"]')?.focus();
+}
+
+// A QR code for `text`, drawn as one SVG path with the standard quiet zone around it.
+export function qrCode(text, size = 220) {
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  const n = qr.getModuleCount();
+  const quiet = 4;
+  let d = '';
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + quiet} ${r + quiet}h1v1h-1z`;
+  }
+  return svg('svg', {
+    viewBox: `0 0 ${n + quiet * 2} ${n + quiet * 2}`, width: size, height: size, class: 'qr', 'shape-rendering': 'crispEdges',
+  }, [
+    svg('rect', { width: n + quiet * 2, height: n + quiet * 2, fill: '#fff' }),
+    svg('path', { d, fill: '#2b1d14' }),
+  ]);
+}
+
+function qrIcon() {
+  const square = (x, y) => [
+    svg('rect', { x, y, width: 7, height: 7, rx: 1.5, fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }),
+    svg('rect', { x: x + 2.5, y: y + 2.5, width: 2, height: 2, fill: 'currentColor' }),
+  ];
+  return svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }, [
+    ...square(2.5, 2.5), ...square(14.5, 2.5), ...square(2.5, 14.5),
+    svg('path', { d: 'M15 15h3v3h-3zM19 19h2.5v2.5H19zM19 14.5h2.5M14.5 20h2.5', fill: 'currentColor', stroke: 'currentColor', 'stroke-width': 1 }),
+  ]);
+}
+
+// A button that shows a big QR code friends can scan to join the room.
+export function qrButton(code) {
+  const url = `${location.origin}/?r=${code}`;
+  return h('button', {
+    class: 'icon-btn',
+    'aria-label': t('qr.open'),
+    onClick: () => openSheet(t('qr.title'), (close) => [
+      h('h2', { class: 'center' }, t('qr.title')),
+      h('div', { class: 'qr-frame', role: 'img', 'aria-label': t('qr.aria', { code }) }, qrCode(url, 240)),
+      h('p', { class: 'qr-code' }, code),
+      h('p', { class: 'center small muted' }, t('qr.hint')),
+      h('button', { class: 'btn-primary btn-block', onClick: close }, t('settings.done')),
+    ]),
+  }, qrIcon());
 }
 
 // The wooden dice cup, upside down on the table (reveal.js puts the die under it).

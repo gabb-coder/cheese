@@ -77,3 +77,6 @@ count-up) and switch off when a phone asks for reduced motion. The night sky fol
 the step of the game, so every sleeping phone looks exactly alike. Fonts: [Fredoka](https://github.com/hafontia/Fredoka-One)
 and [Nunito](https://github.com/googlefonts/nunito), both under the SIL Open Font License
 (licence files next to the fonts in `public/fonts`). No assets from the physical game are used.
+The lobby's QR code is drawn with [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)
+by Kazuhiko Arase (MIT licence, kept in `public/js/vendor/qrcode.mjs` with its notice).
+"QR Code" is a registered trademark of DENSO WAVE INCORPORATED.

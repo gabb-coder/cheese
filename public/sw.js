@@ -34,6 +34,7 @@ const SHELL = [
   '/js/components.js',
   '/js/cues.js',
   '/js/dom.js',
+  '/js/guide.js',
   '/js/i18n.js',
   '/js/main.js',
   '/js/music.js',
@@ -49,6 +50,7 @@ const SHELL = [
   '/js/screens/reveal.js',
   '/js/storage.js',
   '/js/verses.js',
+  '/js/vendor/qrcode.mjs',
   '/manifest.webmanifest',
 ];
 
