@@ -48,6 +48,7 @@ const SHELL = [
   '/js/screens/notice.js',
   '/js/screens/reveal.js',
   '/js/storage.js',
+  '/js/verses.js',
   '/manifest.webmanifest',
 ];
 
