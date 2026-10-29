@@ -461,6 +461,44 @@ describe('host disconnects (PLAN.md §7)', () => {
     assert.equal(env.room.phase, 'LOBBY');
   });
 
+  it('keeps a scoreboard across rounds, only updated when a game ends', () => {
+    const env = setup({ humans: 4 });
+    const playRound = () => {
+      const game = start(env);
+      let guard = 0;
+      while (env.room.phase !== PHASE.VOTE && guard++ < 1000) {
+        assert.deepEqual(env.host.last.room.scores, expectedBefore, 'unchanged during the game');
+        env.clock.tick(1_000);
+      }
+      // Everyone votes for the Thief (the Thief votes for someone else): the Sleepyheads win.
+      for (const c of env.conns) {
+        const target = c.seatId === game.thiefId ? env.conns.find((o) => o.seatId !== c.seatId).seatId : game.thiefId;
+        env.room.handle(c, { t: 'vote', playerId: target });
+      }
+      assert.equal(env.room.phase, PHASE.RESULTS);
+      return env.room.game; // the finished game, with its Follower
+    };
+    let expectedBefore = {};
+    const first = playRound();
+    const scores = env.host.last.room.scores;
+    assert.equal(env.host.last.room.round, 1);
+    for (const c of env.conns) {
+      const won = c.seatId !== first.thiefId && c.seatId !== first.followerId;
+      assert.deepEqual(scores[c.seatId], { wins: won ? 1 : 0, played: 1 }, c.label);
+    }
+    env.room.handle(env.host, { t: 'playAgain' });
+    assert.deepEqual(env.host.last.room.scores, scores, 'kept in the lobby');
+    expectedBefore = scores;
+    playRound();
+    assert.equal(env.host.last.room.round, 2);
+    for (const c of env.conns) assert.equal(env.host.last.room.scores[c.seatId].played, 2);
+    env.room.handle(env.host, { t: 'playAgain' });
+    const leaver = env.conns[3];
+    env.room.handle(leaver, { t: 'leave' });
+    assert.equal(env.host.last.room.scores[leaver.seatId], undefined, 'a player who leaves drops off');
+    env.verify();
+  });
+
   it('a host who leaves on purpose mid-game hands over at once', () => {
     const env = setup({ humans: 4 });
     start(env);

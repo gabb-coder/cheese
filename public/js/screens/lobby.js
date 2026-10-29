@@ -117,6 +117,8 @@ export function render({ state, actions }) {
 
   const seatFor = (p) => h('li', { class: `seat${p.connected ? '' : ' offline'}${p.id === meId ? ' me' : ''}` },
     hostAvatar(p),
+    // Wins so far in this room, on the corner of the mouse.
+    view.room.scores?.[p.id] ? h('span', { class: 'seat-wins' }, t('lobby.wins', { n: view.room.scores[p.id].wins })) : null,
     h('div', { class: 'grow' },
       h('div', { class: 'name' }, p.name),
       h('div', { class: 'sub' }, [p.id === meId ? t('lobby.you') : null, p.isHost ? t('lobby.host') : null, p.isBot ? t('lobby.bot') : null,

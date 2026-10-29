@@ -121,7 +121,8 @@ export function assertEntitled(game, me, view, ctx = '') {
   }
 
   if (view.results) {
-    onlyKeys(view.results, ['thiefId', 'followerId', 'followerPickedBy', 'roles', 'dice', 'votes',
+    onlyKeys(view.results, ['thiefId', 'followerId', 'followerPickedBy', 'roles', 'dice', 'peeks', 'votes',
       'counts', 'leaders', 'thiefCaught', 'winners'], where('results'));
+    assert.deepEqual(view.results.peeks, game.peeks, where('results.peeks'));
   }
 }
