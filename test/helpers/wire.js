@@ -53,7 +53,10 @@ export function assertWireMessage(msg, ctx) {
     for (const score of Object.values(msg.room.scores)) assert.ok(score.played < msg.room.round, where('scores before the results'));
   }
   assert.ok(Array.isArray(msg.players), where('players'));
-  for (const p of msg.players) onlyKeys(p, ['id', 'name', 'connected', 'isBot', 'isHost'], where('players[]'));
+  for (const p of msg.players) {
+    onlyKeys(p, ['id', 'name', 'connected', 'isBot', 'isHost', 'look'], where('players[]'));
+    if (p.look) onlyKeys(p.look, ['fur', 'hat'], where('players[].look'));
+  }
 
   // No seat token other than your own may appear anywhere, ever.
   const text = JSON.stringify(msg);

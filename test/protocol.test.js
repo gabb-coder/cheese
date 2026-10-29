@@ -11,6 +11,7 @@ describe('protocol', () => {
       create: { name: 'Ana' },
       join: { room: 'abcd', name: 'Ben' },
       settings: { settings: { hourSec: 10, narratorOnHost: true } },
+      look: { fur: 3, hat: 'bow' },
       kick: { playerId: 'a1b2c3' },
       removeBot: { playerId: 'a1b2c3' },
       peek: { playerId: 'a1b2c3' },
@@ -24,7 +25,15 @@ describe('protocol', () => {
     }
   });
 
-  it('normalises room codes and names', () => {
+  it('accepts only known mouse looks', () => {
+    assert.deepEqual(parse({ t: 'look', fur: 0, hat: 'none' }).msg, { t: 'look', fur: 0, hat: 'none' });
+    for (const bad of [{ fur: 8, hat: 'bow' }, { fur: -1, hat: 'bow' }, { fur: 1.5, hat: 'bow' }, { fur: '2', hat: 'bow' },
+      { fur: 2, hat: 'mask' }, { fur: 2 }, { hat: 'bow' }, { fur: 2, hat: 'bow', extra: 1 }]) {
+      assert.equal(parse({ t: 'look', ...bad }).error, 'BAD_MESSAGE', JSON.stringify(bad));
+    }
+  });
+
+    it('normalises room codes and names', () => {
     assert.deepEqual(parse({ t: 'join', room: ' abcd ', name: '  Big   Cheese ' }).msg,
       { t: 'join', room: 'ABCD', name: 'Big Cheese' });
   });

@@ -168,6 +168,7 @@ conn.addEventListener('message', ({ detail: msg }) => {
       }
       state.freshConnection = false;
       state.view = msg;
+      applySavedLook(msg);
       state.pendingHello = false;
       break;
     case 'left':
@@ -185,6 +186,16 @@ conn.addEventListener('message', ({ detail: msg }) => {
   }
   render();
 });
+
+// Bring this phone's saved mouse into each new room (once per room).
+let lookSentFor = null;
+function applySavedLook(view) {
+  const look = prefs.look;
+  if (view.phase.name !== 'LOBBY' || !look || lookSentFor === view.room.code) return;
+  lookSentFor = view.room.code;
+  const me = view.players.find((p) => p.id === view.me.id);
+  if (me && !me.look) actions.send({ t: 'look', fur: look.fur, hat: look.hat });
+}
 
 function handleError(msg) {
   if (msg.for === 'hello') {
