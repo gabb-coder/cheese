@@ -166,6 +166,11 @@ conn.addEventListener('message', ({ detail: msg }) => {
       if (state.view && !state.freshConnection && msg.room.hostId === msg.me.id && state.view.room.hostId !== msg.me.id) {
         toast(t('conn.nowHost'));
       }
+      // Back in the lobby before the results: the host ended the game.
+      if (state.view && !state.freshConnection && msg.phase.name === 'LOBBY'
+        && !['LOBBY', 'RESULTS'].includes(state.view.phase.name)) {
+        toast(t('endGame.ended'), 4000);
+      }
       state.freshConnection = false;
       state.view = msg;
       applySavedLook(msg);

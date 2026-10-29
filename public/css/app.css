@@ -368,6 +368,7 @@ button:focus-visible { outline: 4px solid color-mix(in srgb, var(--cheddar) 75%,
 .btn-primary { background: var(--cheddar); }
 .btn-primary:hover:not(:disabled) { filter: brightness(1.05); }
 .btn-secondary { background: var(--surface-2); color: var(--on-surface); }
+.btn-danger { background: var(--tomato); color: #fff; }
 .btn-ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--fg-muted); text-decoration: underline; text-underline-offset: 4px; font-size: 1rem; }
 .btn-ghost:active:not(:disabled) { transform: none; box-shadow: none; }
 .btn-small { min-height: 44px; padding: 0 16px; font-size: 1rem; border-radius: 14px; }
