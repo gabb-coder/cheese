@@ -38,6 +38,8 @@ export const prefs = {
   set narration(value) { write('narration', value); },
   get music() { return read('music'); },
   set music(value) { write('music', value); },
+  get look() { return read('look'); },
+  set look(value) { write('look', value); },
   get guideSeen() { return read('guideSeen') === true; },
   set guideSeen(value) { write('guideSeen', value); },
   get lang() { return read('lang'); },

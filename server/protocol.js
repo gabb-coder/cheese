@@ -14,6 +14,14 @@ export const SETTINGS_LIMITS = Object.freeze({
   voteSec: [15, 180],
 });
 
+// A player's mouse: one of the fur colours and one accessory (drawn by the client).
+export const LOOK = Object.freeze({
+  furs: 8,
+  hats: Object.freeze(['none', 'bow', 'flower', 'party', 'glasses', 'beanie', 'bowtie', 'headphones']),
+});
+const fur = (v) => (Number.isInteger(v) && v >= 0 && v < LOOK.furs ? v : undefined);
+const hat = (v) => (typeof v === 'string' && LOOK.hats.includes(v) ? v : undefined);
+
 const roomCode = (v) => {
   if (typeof v !== 'string') return undefined;
   const code = v.trim().toUpperCase();
@@ -59,6 +67,7 @@ const SCHEMA = {
   create: { name: [cleanName, true] },
   join: { room: [roomCode, true], name: [cleanName, true] },
   settings: { settings: [settings, true] },
+  look: { fur: [fur, true], hat: [hat, true] },
   kick: { playerId: [id, true] },
   addBot: {},
   removeBot: { playerId: [id, true] },

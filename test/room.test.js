@@ -461,7 +461,21 @@ describe('host disconnects (PLAN.md §7)', () => {
     assert.equal(env.room.phase, 'LOBBY');
   });
 
-  it('keeps a scoreboard across rounds, only updated when a game ends', () => {
+  it('players can pick their mouse in the lobby only, and everyone sees it', () => {
+    const env = setup({ humans: 4 });
+    const [a, b] = env.conns;
+    env.room.handle(a, { t: 'look', fur: 4, hat: 'party' });
+    for (const c of env.conns) assert.deepEqual(c.last.players.find((p) => p.id === a.seatId).look, { fur: 4, hat: 'party' });
+    assert.equal(b.last.players.find((p) => p.id === b.seatId).look, undefined, 'others keep the default');
+    start(env);
+    a.take();
+    env.room.handle(a, { t: 'look', fur: 1, hat: 'bow' });
+    assert.equal(a.last.code, 'WRONG_PHASE', 'not during a game');
+    assert.deepEqual(a.last.t, 'error');
+    env.verify();
+  });
+
+    it('keeps a scoreboard across rounds, only updated when a game ends', () => {
     const env = setup({ humans: 4 });
     const playRound = () => {
       const game = start(env);

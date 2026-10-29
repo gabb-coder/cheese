@@ -49,6 +49,61 @@ const FURS = [
   ['#c4a68f', '#a88a72'], // cocoa
 ];
 
+export const FUR_COLORS = FURS.map(([face]) => face);
+export const HATS = ['none', 'bow', 'flower', 'party', 'glasses', 'beanie', 'bowtie', 'headphones'];
+
+// The accessory a player picked for their mouse (drawn over the 64x64 avatar).
+function accessory(hat, ink) {
+  const line = { stroke: ink, 'stroke-width': 2, 'stroke-linejoin': 'round' };
+  switch (hat) {
+    case 'bow':
+      return [
+        svg('path', { ...line, d: 'M40 22 L32 15 L32 29 Z M40 22 L48 15 L48 29 Z', fill: '#ef7f9c' }),
+        svg('circle', { ...line, cx: 40, cy: 22, r: 3, fill: '#f4a7b9' }),
+      ];
+    case 'flower':
+      return [
+        ...[0, 72, 144, 216, 288].map((deg) => svg('circle', {
+          ...line, 'stroke-width': 1.5, r: 3.6, fill: '#fff',
+          cx: (13 + 4.5 * Math.cos((deg * Math.PI) / 180)).toFixed(2), cy: (12 + 4.5 * Math.sin((deg * Math.PI) / 180)).toFixed(2),
+        })),
+        svg('circle', { ...line, 'stroke-width': 1.5, cx: 13, cy: 12, r: 3, fill: '#ffc23d' }),
+      ];
+    case 'party':
+      return [
+        svg('path', { ...line, d: 'M23 23 L41 23 L32 1 Z', fill: '#7c9be0' }),
+        svg('path', { d: 'M26.5 15 L37.5 15 M29 9 L35 9', stroke: '#fff6e3', 'stroke-width': 2.2 }),
+        svg('circle', { ...line, cx: 32, cy: 2, r: 3, fill: '#ffc23d' }),
+      ];
+    case 'glasses':
+      return [
+        svg('circle', { ...line, 'stroke-width': 2.2, cx: 25, cy: 35, r: 6, fill: 'rgb(255 255 255 / 0.25)' }),
+        svg('circle', { ...line, 'stroke-width': 2.2, cx: 39, cy: 35, r: 6, fill: 'rgb(255 255 255 / 0.25)' }),
+        svg('path', { d: 'M31 35 h2', stroke: ink, 'stroke-width': 2.2 }),
+      ];
+    case 'beanie':
+      return [
+        svg('path', { ...line, 'stroke-width': 2.5, d: 'M13 30 Q13 11 32 11 Q51 11 51 30 Z', fill: '#d9584a' }),
+        svg('path', { ...line, d: 'M12 30 h40 v-5.5 h-40 z', fill: '#b8443a' }),
+        svg('circle', { ...line, cx: 32, cy: 10, r: 4, fill: '#fff6e3' }),
+      ];
+    case 'bowtie':
+      return [
+        svg('path', { ...line, d: 'M32 57 L24 52 L24 62 Z M32 57 L40 52 L40 62 Z', fill: '#d9584a' }),
+        svg('rect', { ...line, x: 30, y: 55, width: 4, height: 4, rx: 1, fill: '#b8443a' }),
+      ];
+    case 'headphones':
+      return [
+        svg('path', { d: 'M9 31 Q9 5 32 5 Q55 5 55 31', fill: 'none', stroke: ink, 'stroke-width': 5, 'stroke-linecap': 'round' }),
+        svg('path', { d: 'M9 31 Q9 5 32 5 Q55 5 55 31', fill: 'none', stroke: '#7c9be0', 'stroke-width': 2, 'stroke-linecap': 'round' }),
+        svg('rect', { ...line, x: 5, y: 26, width: 9, height: 15, rx: 3.5, fill: '#7c9be0' }),
+        svg('rect', { ...line, x: 50, y: 26, width: 9, height: 15, rx: 3.5, fill: '#7c9be0' }),
+      ];
+    default:
+      return [];
+  }
+}
+
 function hashOf(id) {
   let hash = 0;
   for (const ch of String(id)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
@@ -57,7 +112,9 @@ function hashOf(id) {
 
 export function avatar(player, size = 48) {
   const hash = hashOf(player.id);
-  const [face, ear] = FURS[hash % FURS.length];
+  // The player's own pick if they made one, else a fur from their id (the same on every phone).
+  const fur = Number.isInteger(player.look?.fur) ? player.look.fur : hash % FURS.length;
+  const [face, ear] = FURS[fur];
   const ink = '#2b1d14';
   const earAt = (cx, side) => svg('g', { class: `ear ear-${side}` }, [
     svg('circle', { cx, cy: 20, r: 12, fill: ear, stroke: ink, 'stroke-width': 2.5 }),
@@ -79,6 +136,7 @@ export function avatar(player, size = 48) {
   parts.push(svg('ellipse', { cx: 20.5, cy: 43, rx: 3.6, ry: 2.1, fill: '#f4a7b9', opacity: 0.8 }));
   parts.push(svg('ellipse', { cx: 43.5, cy: 43, rx: 3.6, ry: 2.1, fill: '#f4a7b9', opacity: 0.8 }));
   parts.push(svg('circle', { cx: 32, cy: 43, r: 2.8, fill: '#ef7f9c', stroke: ink, 'stroke-width': 1.5 }));
+  parts.push(...accessory(player.look?.hat, ink));
 
   const el = h('span', { class: `avatar${player.isHost ? ' host' : ''}`, 'aria-hidden': 'true' });
   el.style.width = `${size}px`;
@@ -315,7 +373,7 @@ function choices(items, isOn, onPick) {
 
 // A sheet that slides up over the page. Escape, a tap on the backdrop or close() dismisses
 // it; `build(close)` returns its contents.
-function openSheet(label, build) {
+export function openSheet(label, build) {
   document.querySelector('.sheet-backdrop')?.remove();
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   const close = () => {
@@ -406,5 +464,46 @@ export function woodenCup() {
     svg('path', { d: 'M36 46 Q80 56 124 46 L126 58 Q80 68 34 58 Z', fill: '#8a5230', stroke: ink, 'stroke-width': 3, 'stroke-linejoin': 'round' }),
     svg('path', { d: 'M25 138 Q80 150 135 138 L137 152 Q80 164 23 152 Z', fill: '#8a5230', stroke: ink, 'stroke-width': 3, 'stroke-linejoin': 'round' }),
     svg('ellipse', { cx: 80, cy: 22, rx: 40, ry: 9, fill: '#a8693a', stroke: ink, 'stroke-width': 3 }),
+  ]);
+}
+
+// Pick your mouse: fur colour and accessory, previewed live. `onPick(look)` gets every change.
+export function openLookPicker(seat, onPick) {
+  const player = { ...seat, isHost: false }; // no crown over the previews
+  let look = {
+    fur: Number.isInteger(player.look?.fur) ? player.look.fur : hashOf(player.id) % FURS.length,
+    hat: player.look?.hat ?? 'none',
+  };
+  const preview = h('div', { class: 'look-preview' });
+  const furs = h('div', { class: 'fur-swatches' });
+  const hats = h('div', { class: 'hat-grid' });
+  const draw = () => {
+    preview.replaceChildren(avatar({ ...player, look }, 96));
+    furs.replaceChildren(...FUR_COLORS.map((color, fur) => {
+      const swatch = h('button', {
+        class: 'fur-swatch', 'aria-pressed': String(fur === look.fur), 'aria-label': t('look.furN', { n: fur + 1 }),
+        onClick: () => pick({ fur }),
+      });
+      swatch.style.background = color;
+      return swatch;
+    }));
+    hats.replaceChildren(...HATS.map((hat) => h('button', {
+      class: 'hat-choice', 'aria-pressed': String(hat === look.hat), 'aria-label': t(`look.hats.${hat}`), onClick: () => pick({ hat }),
+    }, avatar({ ...player, look: { ...look, hat } }, 44), h('span', {}, t(`look.hats.${hat}`)))));
+  };
+  const pick = (change) => {
+    look = { ...look, ...change };
+    draw();
+    onPick(look);
+  };
+  draw();
+  openSheet(t('look.title'), (close) => [
+    h('h2', { class: 'center' }, t('look.title')),
+    preview,
+    h('div', { class: 'label' }, t('look.fur')),
+    furs,
+    h('div', { class: 'label' }, t('look.hat')),
+    hats,
+    h('button', { class: 'btn-primary btn-block', onClick: close }, t('settings.done')),
   ]);
 }

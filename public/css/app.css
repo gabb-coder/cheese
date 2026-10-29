@@ -390,7 +390,7 @@ button:focus-visible { outline: 4px solid color-mix(in srgb, var(--cheddar) 75%,
   background: rgb(8 6 30 / 0.55);
   animation: fade-in 0.2s ease both;
 }
-.sheet { width: min(100%, 440px); animation: sheet-up 0.35s cubic-bezier(.2,1.2,.4,1) both; }
+.sheet { max-height: calc(100dvh - 32px); overflow-y: auto; width: min(100%, 440px); animation: sheet-up 0.35s cubic-bezier(.2,1.2,.4,1) both; }
 /* Lobby QR code */
 .qr-frame { align-self: center; padding: 10px; background: #fff; border: 3px solid var(--ink); border-radius: 18px; line-height: 0; }
 .qr-frame .qr { width: min(240px, 64vw); height: auto; }
@@ -652,6 +652,20 @@ body[data-mood="morning"] .error-text { color: var(--tomato); }
 }
 .seat > .grow { min-width: 0; }
 .seat .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 1.02rem var(--font-display); }
+.seat .edit-look { background: var(--cheddar); color: var(--ink); font-size: 0.85rem; }
+/* Pick your mouse */
+.look-preview { align-self: center; line-height: 0; animation: pop-in 0.35s cubic-bezier(.2,1.4,.4,1) both; }
+.fur-swatches { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+.fur-swatch { min-height: 0; aspect-ratio: 1; width: 100%; padding: 0; border-radius: 50%; border: 3px solid var(--ink); box-shadow: 0 2px 0 var(--ink); }
+.fur-swatch[aria-pressed="true"] { outline: 3px solid var(--cheddar-deep); outline-offset: 2px; }
+.hat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.hat-choice {
+  min-height: 0; padding: 6px 2px 4px; border-radius: 14px; border-width: 2px; box-shadow: 0 2px 0 var(--outline);
+  display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--surface-2); color: var(--on-surface);
+  font: 700 0.68rem var(--font-body);
+}
+.hat-choice span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hat-choice[aria-pressed="true"] { background: var(--cheddar); color: var(--ink); }
 .seat-wins {
   position: absolute; left: 4px; bottom: 2px; font: 700 0.68rem/1.3 var(--font-display); padding: 0 5px;
   border-radius: 999px; background: var(--cheddar); color: var(--ink); border: 1.5px solid var(--ink);

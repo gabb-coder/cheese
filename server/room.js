@@ -291,6 +291,13 @@ export class Room {
         }
         return null;
 
+      case 'look':
+        // Cosmetic and public, and only in the lobby, so it can't hint at anything in a game.
+        if (!inLobby) return 'WRONG_PHASE';
+        seat.look = { fur: msg.fur, hat: msg.hat };
+        this.broadcastViews();
+        return null;
+
       case 'settings':
         if (!isHost) return 'NOT_HOST';
         if (!inLobby) return 'WRONG_PHASE';
@@ -452,6 +459,7 @@ export class Room {
         connected: s.isBot || Boolean(s.conn),
         isBot: s.isBot,
         isHost: s.id === this.hostId,
+        ...(s.look ? { look: { ...s.look } } : {}),
       }))
       .sort((a, b) => Number(a.isBot) - Number(b.isBot) ||
         nameKey(a.name).localeCompare(nameKey(b.name)) || (a.id < b.id ? -1 : 1));

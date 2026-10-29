@@ -1,7 +1,8 @@
 // Lobby: room code and share link, who's here, host controls (kick, bots, start).
 
 import { h, toast, calm } from '../dom.js';
-import { avatar, settingsButton, qrButton } from '../components.js';
+import { avatar, settingsButton, qrButton, openLookPicker } from '../components.js';
+import { prefs } from '../storage.js';
 import { openGuide } from '../guide.js';
 import { t, duration } from '../i18n.js';
 import { narratesHere, musicHere, testVoice } from '../narrator.js';
@@ -123,6 +124,16 @@ export function render({ state, actions }) {
       h('div', { class: 'name' }, p.name),
       h('div', { class: 'sub' }, [p.id === meId ? t('lobby.you') : null, p.isHost ? t('lobby.host') : null, p.isBot ? t('lobby.bot') : null,
         p.connected ? null : t('lobby.offline')].filter(Boolean).join(' · ') || '\u00a0')),
+    p.id === meId
+      ? h('button', {
+        class: 'kick edit-look',
+        'aria-label': t('look.edit'),
+        onClick: () => openLookPicker(p, (look) => {
+          prefs.look = look;
+          actions.send({ t: 'look', ...look });
+        }),
+      }, '🎨')
+      : null,
     isHost && p.id !== meId
       ? h('button', {
         class: 'kick',
