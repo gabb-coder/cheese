@@ -3,8 +3,9 @@
 //
 //   npm run test:e2e
 //
-// Scenarios: reload mid-night keeps your seat; server crash -> "Room expired";
-// graceful restart -> "Room expired" at once; host drops -> someone else becomes host;
+// Scenarios: reload mid-night keeps your seat; server crash or graceful restart -> the
+// phones rebuild the same room; a room that is really gone -> "Room expired";
+// host drops -> someone else becomes host;
 // cold start -> cached app shows "Waking up the mouse hole" and connects by itself, even
 // when the host answers with its own wake-up page meanwhile.
 
@@ -131,22 +132,47 @@ await scenario('reloading keeps your seat, role and die (during reveal and mid-n
   if (!notes.includes(`You rolled a ${die}`)) throw new Error(`night notes don't match the die ${die}: ${notes}`);
 });
 
-await scenario('server crash mid-game: players are told the room expired', async (newPlayer) => {
-  const { pages } = await roomWith(newPlayer, ['Ana', 'Ben', 'Cy', 'Dee']);
+await scenario('server crash mid-game: everyone is put back in the same room', async (newPlayer) => {
+  const { pages, code } = await roomWith(newPlayer, ['Ana', 'Ben', 'Cy', 'Dee']);
   await startGame(pages);
   await stopServer('SIGKILL');
   await pages[2].waitForSelector('text=Reconnecting', { timeout: 5000 });
   await startServer();
-  await pages[2].waitForSelector('text=Room expired', { timeout: 20000 });
-  await pages[2].click('text=Back to start');
-  await pages[2].waitForSelector('text=Create a room');
+  for (const p of pages) {
+    await p.waitForSelector('.room-code', { timeout: 30000 });
+    if ((await p.getAttribute('.room-code', 'data-code')) !== code) throw new Error('came back to a different room');
+  }
+  await pages[0].waitForSelector('text=A server update stopped the game', { timeout: 5000 });
+  await pages[0].waitForSelector('text=Start the game', { timeout: 5000 }); // Ana is host again
+  const names = await pages[3].evaluate(() => [...document.querySelectorAll('.seat:not(.empty):not(.leaving) .name')].map((n) => n.textContent));
+  for (const name of ['Ana', 'Ben', 'Cy', 'Dee']) if (!names.some((n) => n.includes(name))) throw new Error(`${name} missing: ${names}`);
 });
 
-await scenario('graceful restart (redeploy): players see "Room expired" at once', async (newPlayer) => {
-  const { pages } = await roomWith(newPlayer, ['Ana', 'Ben']);
+await scenario('graceful restart (redeploy): the lobby comes back with its bots and settings', async (newPlayer) => {
+  const { pages, code } = await roomWith(newPlayer, ['Ana', 'Ben']);
+  await pages[0].click('text=Add a bot');
+  await pages[1].waitForFunction(() => document.querySelectorAll('.seat:not(.empty):not(.leaving)').length === 3);
   await stopServer('SIGTERM');
-  await pages[1].waitForSelector('text=Room expired', { timeout: 5000 });
+  await pages[1].waitForSelector('text=Getting your room back', { timeout: 5000 });
   await startServer();
+  for (const p of pages) {
+    await p.waitForSelector('text=after a server update', { timeout: 30000 });
+    if ((await p.getAttribute('.room-code', 'data-code')) !== code) throw new Error('came back to a different room');
+  }
+  await pages[1].waitForFunction(() => document.querySelectorAll('.seat:not(.empty):not(.leaving)').length === 3);
+});
+
+await scenario('rebuilding gives up when the room really is gone', async (newPlayer) => {
+  const p = await newPlayer();
+  await p.goto(`${BASE}/`);
+  await p.waitForSelector('#name');
+  // A phone that remembers a room this server never had and can no longer rebuild.
+  await p.evaluate(() => {
+    localStorage.setItem('cheese:session', JSON.stringify({ room: 'QQQQ', token: 'a'.repeat(22), playerId: 'x' }));
+    localStorage.setItem('cheese:lastRoom', JSON.stringify({ code: 'QQQQ', name: 'Zed', savedAt: Date.now() - 60 * 60 * 1000 }));
+  });
+  await p.reload();
+  await p.waitForSelector('text=Room expired', { timeout: 10000 });
 });
 
 await scenario('host drops: another player becomes host after the grace period', async (newPlayer) => {

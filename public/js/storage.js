@@ -31,6 +31,13 @@ export const session = {
   clear: () => write('session', null),
 };
 
+// What this phone saw of its room (all public), to rebuild it after a server restart.
+export const lastRoom = {
+  get: () => read('lastRoom'), // { code, name, host, settings, bots, round, scores, inGame, savedAt }
+  set: (value) => write('lastRoom', value),
+  clear: () => write('lastRoom', null),
+};
+
 export const prefs = {
   get name() { return read('name') ?? ''; },
   set name(value) { write('name', value); },

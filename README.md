@@ -9,7 +9,7 @@ A private, mobile-first web version of the social deduction game *Cheese Thief*
 
 ## Status
 All 6 milestones done: the whole game is playable, robust to refreshes, dropped
-connections, sleeping phones, host disconnects, server restarts and cold starts, and
+connections, sleeping phones, host disconnects, server restarts (the phones rebuild their room) and cold starts, and
 ready to deploy as a single Render Web Service (`render.yaml`, see DEPLOY.md).
 
 ## Run it locally

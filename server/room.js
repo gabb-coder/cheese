@@ -94,6 +94,9 @@ export class Room {
     this.stealTimer = null;
     this.endsAt = null;
     this.hostTimer = null;
+    this.restored = false; // rebuilt by its players after a server restart
+    this.restoreHost = null; // nameKey of the host before the restart, until they're back
+    this.restoredScores = new Map(); // nameKey -> { wins, played }, until that player is back
   }
 
   get phase() {
@@ -139,7 +142,9 @@ export class Room {
     };
     this.seats.set(seat.id, seat);
     this.tokens.set(seat.token, seat.id);
-    if (!this.hostId) this.hostId = seat.id;
+    if (!this.hostId || this.restoreHost === nameKey(name)) this.hostId = seat.id;
+    if (this.restoreHost === nameKey(name)) this.restoreHost = null;
+    this.claimRestoredScore(seat);
     this.touch();
     this.attach(seat, conn);
     return null;
@@ -148,7 +153,7 @@ export class Room {
   // A returning player (refresh, dropped connection, phone slept) takes their seat back.
   reclaim(conn, token) {
     const seat = this.seats.get(this.tokens.get(token));
-    if (!seat) return 'SEAT_NOT_FOUND';
+    if (!seat) return this.restored ? 'ROOM_RESTARTED' : 'SEAT_NOT_FOUND';
     this.touch();
     this.attach(seat, conn);
     return null;
@@ -228,11 +233,36 @@ export class Room {
     this.hostTimer = null;
   }
 
-  addBot() {
+  addBot(wanted) {
     const taken = new Set([...this.seats.values()].map((s) => nameKey(s.name)));
-    const name = BOT_NAMES.find((n) => !taken.has(nameKey(n))) ?? `Bot ${this.seats.size + 1}`;
+    const name = [wanted, ...BOT_NAMES].find((n) => n && !taken.has(nameKey(n))) ?? `Bot ${this.seats.size + 1}`;
     const seat = { id: this.newSeatId(), name, token: null, isBot: true, conn: null, joinedAt: this.now() };
     this.seats.set(seat.id, seat);
+    this.claimRestoredScore(seat);
+  }
+
+  // After a server restart the room's players rebuild it from what they could all see:
+  // its settings, bots, host and scoreboard. A game that was being played is lost.
+  // `firstName` is the player rebuilding it, who joins straight after.
+  restoreFrom({ host, settings, bots = [], round = 0, scores = [] }, firstName) {
+    this.restored = true;
+    if (settings) Object.assign(this.settings, settings);
+    this.restoreHost = host ? nameKey(host) : null;
+    this.restoredScores = new Map(scores.map((s) => [nameKey(s.name), { wins: s.wins, played: s.played }]));
+    this.round = Math.max(round, ...scores.map((s) => s.played));
+    this.scoredRound = this.round;
+    if (!this.enableBots) return;
+    for (const name of bots.filter((n) => nameKey(n) !== nameKey(firstName)).slice(0, RULE_OPTIONS.maxPlayers - 1)) {
+      this.addBot(name);
+    }
+  }
+
+  claimRestoredScore(seat) {
+    const key = nameKey(seat.name);
+    const score = this.restoredScores.get(key);
+    if (!score) return;
+    this.restoredScores.delete(key);
+    this.scores.set(seat.id, score);
   }
 
   close(reason) {
@@ -342,6 +372,8 @@ export class Room {
         if (this.seats.size < RULE_OPTIONS.minPlayers) return 'NOT_ENOUGH_PLAYERS';
         this.game = createGame([...this.seats.keys()], this.rng);
         this.round += 1;
+        this.restoreHost = null; // whoever is host now keeps it
+        this.restoredScores.clear();
         this.startClock();
         this.broadcastViews();
         return null;

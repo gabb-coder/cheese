@@ -3,7 +3,7 @@
 // renders the newest one. There is no game logic here.
 
 import { Connection } from './net.js';
-import { session, prefs } from './storage.js';
+import { session, prefs, lastRoom } from './storage.js';
 import { h, toast, swap } from './dom.js';
 import { syncServerTime, startCountdowns } from './clock.js';
 import { stepKey, lineFor, narratesHere, musicHere, toggleNarration, speak, unlockSpeech, startCountdown, stopCountdown } from './narrator.js';
@@ -40,6 +40,7 @@ const state = {
   pendingHello: false,
   attempts: 0,
   freshConnection: false, // the next view is the catch-up after (re)connecting
+  rejoining: null, // { ...lastRoom, until } while rebuilding the room after a server restart
 };
 
 // ---------------------------------------------------------------------------
@@ -73,6 +74,12 @@ const actions = {
   },
   reconnect() {
     conn.reconnectNow();
+  },
+  stopRejoin() {
+    stopRejoin();
+    lastRoom.clear();
+    setRoomInUrl(null);
+    render();
   },
   setMusic(on) {
     prefs.music = on ? 'on' : 'off';
@@ -119,6 +126,51 @@ function setMood(mood) {
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', MOOD_COLOR[mood]);
 }
 
+// The server restarted (an update, or a crash): rebuild the room from what this phone
+// remembers, or join it if another phone got there first. The server only allows this
+// shortly after it starts, so a phone may first be talking to the old server: keep trying.
+const REMEMBER_MS = 45 * 60 * 1000;
+const REJOIN_FOR_MS = 2 * 60 * 1000;
+let rejoinTimer = null;
+
+function startRejoin() {
+  const saved = lastRoom.get();
+  if (!saved?.code || !saved.name || Date.now() - saved.savedAt > REMEMBER_MS) return false;
+  state.rejoining = { ...saved, until: Date.now() + REJOIN_FOR_MS };
+  setRoomInUrl(saved.code);
+  tryRejoin();
+  return true;
+}
+
+function tryRejoin() {
+  clearTimeout(rejoinTimer);
+  const r = state.rejoining;
+  if (!r) return;
+  if (Date.now() > r.until) {
+    giveUpRejoin();
+    return;
+  }
+  const { code: room, name, host, settings, bots, round, scores } = r;
+  // Not connected yet: the socket's 'open' tries again. Otherwise wait for the answer.
+  if (conn.send({ t: 'rejoin', room, name, host, settings, bots, round, scores })) {
+    rejoinTimer = setTimeout(tryRejoin, 8000);
+  } else {
+    rejoinTimer = setTimeout(tryRejoin, Math.max(0, r.until - Date.now()) + 50);
+  }
+}
+
+function stopRejoin() {
+  clearTimeout(rejoinTimer);
+  state.rejoining = null;
+}
+
+function giveUpRejoin() {
+  stopRejoin();
+  lastRoom.clear();
+  state.notice = 'serverRestart';
+  render();
+}
+
 function forgetRoom(noticeKey) {
   setMood('evening');
   stopCountdown();
@@ -145,7 +197,7 @@ conn.addEventListener('status', ({ detail }) => {
   if (detail === 'open') {
     state.attempts = 0;
     state.freshConnection = true;
-    hello();
+    if (!hello()) tryRejoin();
   } else if (detail === 'connecting') {
     state.attempts += 1;
   }
@@ -157,6 +209,10 @@ conn.addEventListener('message', ({ detail: msg }) => {
     case 'welcome':
       session.set({ room: msg.room, token: msg.token, playerId: msg.playerId });
       setRoomInUrl(msg.room);
+      if (state.rejoining) {
+        toast(t(state.rejoining.inGame ? 'rejoin.backLost' : 'rejoin.back', { code: msg.room }), 6000);
+        stopRejoin();
+      }
       return;
     case 'view':
       syncServerTime(msg.serverNow);
@@ -173,14 +229,21 @@ conn.addEventListener('message', ({ detail: msg }) => {
       }
       state.freshConnection = false;
       state.view = msg;
+      rememberRoom(msg);
       applySavedLook(msg);
       state.pendingHello = false;
       break;
     case 'left':
       forgetRoom();
+      lastRoom.clear();
       setRoomInUrl(null);
       break;
     case 'roomClosed':
+      if (msg.reason === 'serverRestart') {
+        forgetRoom();
+        if (startRejoin()) break;
+      }
+      lastRoom.clear();
       forgetRoom(NOTICES.has(msg.reason) ? msg.reason : 'expired');
       break;
     case 'error':
@@ -192,20 +255,56 @@ conn.addEventListener('message', ({ detail: msg }) => {
   render();
 });
 
-// Bring this phone's saved mouse into each new room (once per room).
+// What everyone in the room can see, kept in case the server restarts (see startRejoin).
+// A game in progress can't come back, so its round isn't counted.
+function rememberRoom(view) {
+  const names = new Map(view.players.map((p) => [p.id, p.name]));
+  const inGame = !['LOBBY', 'RESULTS'].includes(view.phase.name);
+  lastRoom.set({
+    code: view.room.code,
+    name: names.get(view.me.id),
+    host: names.get(view.room.hostId),
+    settings: view.room.settings,
+    bots: view.players.filter((p) => p.isBot).map((p) => p.name),
+    round: Math.max(0, view.room.round - (inGame ? 1 : 0)),
+    scores: Object.entries(view.room.scores).filter(([id]) => names.has(id))
+      .map(([id, s]) => ({ name: names.get(id), wins: s.wins, played: s.played })),
+    inGame,
+    savedAt: Date.now(),
+  });
+}
+
+// Bring this phone's saved mouse into each new seat (once per seat).
 let lookSentFor = null;
 function applySavedLook(view) {
   const look = prefs.look;
-  if (view.phase.name !== 'LOBBY' || !look || lookSentFor === view.room.code) return;
-  lookSentFor = view.room.code;
+  const seat = `${view.room.code}:${view.me.id}`;
+  if (view.phase.name !== 'LOBBY' || !look || lookSentFor === seat) return;
+  lookSentFor = seat;
   const me = view.players.find((p) => p.id === view.me.id);
   if (me && !me.look) actions.send({ t: 'look', fur: look.fur, hat: look.hat });
 }
 
 function handleError(msg) {
-  if (msg.for === 'hello') {
-    forgetRoom(msg.code === 'SEAT_NOT_FOUND' ? 'seatGone' : 'expired');
+  if (msg.for === 'rejoin') {
+    if (msg.code === 'SERVER_RESTARTING') {
+      // Still the old server: the new one will answer on the next connection.
+      clearTimeout(rejoinTimer);
+      rejoinTimer = setTimeout(tryRejoin, 2000);
+    } else if (msg.code !== 'ALREADY_SEATED') {
+      giveUpRejoin();
+    }
+  } else if (msg.for === 'hello') {
+    // The server lost the room (restart, crash, a sleeping server) or rebuilt it without
+    // this phone's seat: try to get back in by name.
+    const restarted = msg.code === 'ROOM_NOT_FOUND' || msg.code === 'ROOM_RESTARTED';
+    forgetRoom();
+    if (!(restarted && startRejoin())) {
+      lastRoom.clear();
+      forgetRoom(msg.code === 'SEAT_NOT_FOUND' ? 'seatGone' : 'expired');
+    }
   } else if (msg.code === 'KICKED') {
+    lastRoom.clear();
     forgetRoom('kicked');
   } else if (msg.code === 'REPLACED') {
     state.view = null;
@@ -273,7 +372,7 @@ let banner = null;
 function screenName() {
   if (state.notice) return 'notice';
   if (state.view) return state.view.phase.name === 'LOBBY' ? 'lobby' : 'game';
-  if (state.status !== 'open' || state.pendingHello) return 'connecting';
+  if (state.status !== 'open' || state.pendingHello || state.rejoining) return 'connecting';
   return 'home';
 }
 

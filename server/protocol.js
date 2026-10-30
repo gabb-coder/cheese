@@ -61,11 +61,43 @@ function settings(v) {
   return Object.keys(out).length ? out : undefined;
 }
 
+// What a phone remembers of its room, sent back to rebuild it after a server restart.
+// All of it is public: every player in the room could see it.
+const count = (max) => (v) => (Number.isInteger(v) && v >= 0 && v <= max ? v : undefined);
+function botNames(v) {
+  if (!Array.isArray(v) || v.length > 7) return undefined;
+  const names = v.map(cleanName);
+  return names.includes(undefined) ? undefined : names;
+}
+function scoreList(v) {
+  if (!Array.isArray(v) || v.length > 8) return undefined;
+  const out = [];
+  for (const s of v) {
+    if (typeof s !== 'object' || s === null || Array.isArray(s)) return undefined;
+    if (Object.keys(s).some((key) => !['name', 'wins', 'played'].includes(key))) return undefined;
+    const name = cleanName(s.name);
+    const wins = count(9999)(s.wins);
+    const played = count(9999)(s.played);
+    if (name === undefined || wins === undefined || played === undefined || wins > played) return undefined;
+    out.push({ name, wins, played });
+  }
+  return out;
+}
+
 // type -> { field: [parser, required] }
 const SCHEMA = {
   hello: { token: [token, true], room: [roomCode, true] },
   create: { name: [cleanName, true] },
   join: { room: [roomCode, true], name: [cleanName, true] },
+  rejoin: {
+    room: [roomCode, true],
+    name: [cleanName, true],
+    host: [cleanName, false],
+    settings: [settings, false],
+    bots: [botNames, false],
+    round: [count(9999), false],
+    scores: [scoreList, false],
+  },
   settings: { settings: [settings, true] },
   look: { fur: [fur, true], hat: [hat, true] },
   kick: { playerId: [id, true] },
@@ -122,6 +154,8 @@ export const ERROR_TEXT = Object.freeze({
   BAD_NAME: `Pick a name of 1-${NAME_MAX} characters.`,
   ROOM_NOT_FOUND: 'Room expired or not found. Create a new one.',
   SEAT_NOT_FOUND: 'Your seat in that room is gone. Join again.',
+  ROOM_RESTARTED: 'The server restarted. Getting your room back.',
+  SERVER_RESTARTING: 'The server is restarting. Try again in a moment.',
   GAME_IN_PROGRESS: 'That game has already started.',
   NAME_TAKEN: 'Someone in that room already has that name.',
   ROOM_FULL: 'That room is full (8 players).',

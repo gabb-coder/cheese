@@ -270,6 +270,100 @@ describe('expiry and restarts', () => {
   });
 });
 
+describe('rebuilding a room after a restart', () => {
+  const saved = (extra = {}) => ({
+    t: 'rejoin',
+    room: 'ABCD',
+    host: 'Ana',
+    settings: { hourSec: 20, followerChoiceSec: 20, discussionSec: 240, voteSec: 45, narratorOnHost: false },
+    bots: ['Whiskers'],
+    round: 3,
+    scores: [{ name: 'Ana', wins: 2, played: 3 }, { name: 'Ben', wins: 1, played: 3 }, { name: 'Whiskers', wins: 0, played: 3 }],
+    ...extra,
+  });
+
+  it('the first phone back rebuilds the room: same code, settings, bots and scoreboard', async () => {
+    const ben = await connect('Ben');
+    ben.send(saved({ name: 'Ben' }));
+    await ben.waitFor('welcome');
+    const view = await ben.waitForView();
+    assert.equal(view.room.code, 'ABCD');
+    assert.equal(view.room.settings.discussionSec, 240);
+    assert.equal(view.room.settings.narratorOnHost, false);
+    assert.equal(view.room.round, 3);
+    assert.deepEqual(playerNames(view), ['Ben', 'Whiskers']);
+    const byName = Object.fromEntries(view.players.map((p) => [p.name, p.id]));
+    assert.deepEqual(view.room.scores[byName.Ben], { wins: 1, played: 3 });
+    assert.deepEqual(view.room.scores[byName.Whiskers], { wins: 0, played: 3 });
+    assert.equal(view.room.hostId, ben.id, 'host until the old host is back');
+  });
+
+  it('others join by name, the old host gets the crown back and their score', async () => {
+    const ben = await connect('Ben');
+    ben.send(saved({ name: 'Ben' }));
+    await ben.waitForView();
+    const ana = await connect('Ana');
+    ana.send(saved({ name: 'Ana', settings: { voteSec: 90 } })); // ignored: the room exists
+    await ana.waitFor('welcome');
+    const view = await ana.waitForView();
+    assert.equal(view.room.hostId, ana.id);
+    assert.equal(view.room.settings.voteSec, 45);
+    assert.deepEqual(view.room.scores[ana.id], { wins: 2, played: 3 });
+    await ben.waitForView((v) => v.room.hostId === ana.id);
+  });
+
+  it('a phone coming back with its old token is told the room was rebuilt', async () => {
+    const ben = await connect('Ben');
+    ben.send(saved({ name: 'Ben' }));
+    await ben.waitForView();
+    const ana = await connect('Ana');
+    ana.send({ t: 'hello', room: 'ABCD', token: 'a'.repeat(22) });
+    await ana.expectError('ROOM_RESTARTED');
+  });
+
+  it('only soon after the server starts, and never for a room that is running', async () => {
+    const { code } = await lobbyOf(2);
+    const late = await connect('Late');
+    late.send(saved({ room: code, name: 'Ana' }));
+    await late.expectError('NAME_TAKEN'); // the room exists, so this is an ordinary join
+
+    srv.rooms.startedAt -= 16 * 60 * 1000;
+    const c = await connect();
+    c.send(saved({ name: 'Ben' }));
+    await c.expectError('ROOM_NOT_FOUND');
+    assert.equal(srv.rooms.get('ABCD'), null);
+  });
+
+  it('a server that is shutting down does not rebuild rooms', async () => {
+    const c = await connect();
+    srv.rooms.closeAll('serverRestart');
+    c.send(saved({ name: 'Ben' }));
+    await c.expectError('SERVER_RESTARTING');
+    assert.equal(srv.rooms.get('ABCD'), null);
+  });
+
+  it('refuses scoreboards that do not add up', async () => {
+    const c = await connect();
+    c.send(saved({ name: 'Ben', scores: [{ name: 'Ben', wins: 4, played: 3 }] }));
+    await c.expectError('BAD_MESSAGE');
+    c.send(saved({ name: 'Ben', bots: Array(8).fill('Bot') }));
+    await c.expectError('BAD_MESSAGE');
+  });
+
+  it('the round count is at least everyone\'s games played, and a new game counts on top', async () => {
+    const ben = await connect('Ben');
+    ben.send(saved({ name: 'Ben', round: 1, bots: ['Whiskers', 'Nibbles'] }));
+    const view = await ben.waitForView();
+    assert.equal(view.room.round, 3);
+    const ana = await connect('Ana');
+    ana.send(saved({ name: 'Ana' }));
+    await ana.waitForView();
+    ana.send({ t: 'start' });
+    const started = await ana.waitForView((v) => v.phase.name !== 'LOBBY');
+    assert.equal(started.room.round, 4);
+  });
+});
+
 describe('bots', () => {
   it('host can add and remove bots, which count as players', async () => {
     const host = await createRoom('Ana');
