@@ -27,6 +27,11 @@ export function assertWireMessage(msg, ctx) {
     case 'error':
       onlyKeys(msg, ['t', 'code', 'message', 'for'], where('error'));
       return;
+    case 'reaction':
+      onlyKeys(msg, ['t', 'from', 'emoji'], where('reaction'));
+      // Never at night: who reacts would show who is awake.
+      assert.ok(ctx.game && ['DISCUSSION', 'VOTE', 'RESULTS'].includes(ctx.game.phase), where('only during the day'));
+      return;
     case 'pong':
       onlyKeys(msg, ['t', 'serverNow'], where('pong'));
       return;

@@ -19,6 +19,10 @@ export const LOOK = Object.freeze({
   furs: 8,
   hats: Object.freeze(['none', 'bow', 'flower', 'party', 'glasses', 'beanie', 'bowtie', 'headphones']),
 });
+// Quick reactions during the day (drawn by the client).
+export const REACTIONS = Object.freeze(['🤔', '😱', '😂', '🙄', '🧀', '👉']);
+const reaction = (v) => (typeof v === 'string' && REACTIONS.includes(v) ? v : undefined);
+
 const fur = (v) => (Number.isInteger(v) && v >= 0 && v < LOOK.furs ? v : undefined);
 const hat = (v) => (typeof v === 'string' && LOOK.hats.includes(v) ? v : undefined);
 
@@ -112,6 +116,7 @@ const SCHEMA = {
   vote: { playerId: [id, true] },
   playAgain: {},
   endGame: {},
+  react: { emoji: [reaction, true] },
   leave: {},
   ping: {},
 };

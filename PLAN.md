@@ -156,6 +156,7 @@ ignored.
 | `endDiscussion` | – | host |
 | `vote` | `playerId` | vote phase; one vote, final once sent |
 | `playAgain` | – | host, results |
+| `react` | `emoji` (one of 🤔 😱 😂 🙄 🧀 👉) | discussion, vote and results only (never at night); at most one per 0.6 s |
 | `rejoin` | `room`, `name`, `host?`, `settings?`, `bots?`, `round?`, `scores?` | after a server restart (§7) |
 | `leave` | – | any time |
 | `ping` | – | every 20 s (app-level heartbeat) |
@@ -169,6 +170,7 @@ ignored.
 | `error` | `code` (`ROOM_NOT_FOUND`, `GAME_IN_PROGRESS`, `NAME_TAKEN`, `ROOM_FULL`, `NOT_ALLOWED`, `BAD_MESSAGE`, `KICKED`, …) and `message` |
 | `roomClosed` | `reason` (`expired`, `empty`, `serverRestart`) |
 | `left` | confirms a `leave`; the client forgets its seat |
+| `reaction` | `from`, `emoji`: someone's quick reaction, sent to everyone |
 | `pong` | `serverNow` (also used to correct clock offset for timers) |
 
 ### The `view` object (the only place game data appears)

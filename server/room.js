@@ -48,6 +48,11 @@ const QUIET_PHASES = new Set([
   PHASE.NIGHT_INTRO, PHASE.HOUR, PHASE.FOLLOWER_CHOICE, PHASE.FOLLOWER_CHECK, PHASE.FOLLOWER_MEET,
 ]);
 
+// Emoji reactions are shown to everyone at once, so only while everyone has their eyes
+// open: at night they would give away who is awake.
+const REACT_PHASES = new Set([PHASE.DISCUSSION, PHASE.VOTE, PHASE.RESULTS]);
+export const REACT_GAP_MS = 600; // faster taps are dropped quietly
+
 const GAME_INTENTS = new Set(['revealed', 'steal', 'peek', 'chooseFollower', 'vote']);
 
 export const errorMessage = (code, forType) => ({
@@ -320,6 +325,20 @@ export class Room {
           conn?.send({ t: 'left' });
         }
         return null;
+
+      case 'react': {
+        if (!REACT_PHASES.has(this.phase)) return 'WRONG_PHASE';
+        const now = this.now();
+        if (now - (seat.reactedAt ?? -Infinity) < REACT_GAP_MS) return null;
+        seat.reactedAt = now;
+        const reaction = { t: 'reaction', from: seat.id, emoji: msg.emoji };
+        for (const s of this.seats.values()) {
+          if (!s.conn) continue;
+          this.audit?.(s.id, reaction, this.game);
+          s.conn.send(reaction);
+        }
+        return null;
+      }
 
       case 'look':
         // Cosmetic and public, and only in the lobby, so it can't hint at anything in a game.
