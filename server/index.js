@@ -159,6 +159,22 @@ function handleMessage(rooms, conn, msg, log) {
       return;
     }
 
+    case 'rejoin': {
+      // After a server restart: back into the same room by name. The first phone back
+      // rebuilds the room from what it remembers.
+      if (conn.room) return conn.send(errorMessage('ALREADY_SEATED', msg.t));
+      let room = rooms.get(msg.room);
+      if (!room) {
+        if (rooms.closing) return conn.send(errorMessage('SERVER_RESTARTING', msg.t)); // ask the next server
+        if (!rooms.canRestore()) return conn.send(errorMessage('ROOM_NOT_FOUND', msg.t));
+        room = rooms.restore(msg.room, msg, msg.name);
+        log(`room ${room.code} restored`);
+      }
+      const error = room.join(conn, msg.name);
+      if (error) conn.send(errorMessage(error, msg.t));
+      return;
+    }
+
     default:
       if (!conn.room) return conn.send(errorMessage('NOT_SEATED', msg.t));
       conn.room.handle(conn, msg);

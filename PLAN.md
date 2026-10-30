@@ -156,6 +156,7 @@ ignored.
 | `endDiscussion` | – | host |
 | `vote` | `playerId` | vote phase; one vote, final once sent |
 | `playAgain` | – | host, results |
+| `rejoin` | `room`, `name`, `host?`, `settings?`, `bots?`, `round?`, `scores?` | after a server restart (§7) |
 | `leave` | – | any time |
 | `ping` | – | every 20 s (app-level heartbeat) |
 
@@ -243,9 +244,15 @@ just `viewFor`.
   (`navigator.share` when available).
 - **Seat token:** 128-bit random, issued in `welcome`, stored in `localStorage` under
   `cheese:<room>`. On reconnect, `hello {token, room}` reclaims the seat in any phase.
-  A token for an unknown room gets `ROOM_NOT_FOUND`, and the client shows "Room expired,
-  create a new one". This also covers redeploys and restarts, because rooms live in
-  memory only.
+  A token for an unknown room gets `ROOM_NOT_FOUND`.
+- **Server restarts** (a redeploy, a crash, a sleeping free-tier server): rooms live in
+  memory only, so they are lost. Each phone remembers what everyone in its room could
+  see (code, its own name, the host's name, settings, bot names, scoreboard) and sends
+  `rejoin` with it. The first phone back rebuilds the room under the same code; the
+  others join it by name, and the old host gets the crown back. A game in progress is
+  lost and its round isn't counted. A server only allows this for 15 minutes after it
+  starts; one that is shutting down answers `SERVER_RESTARTING` so the phone asks the
+  next server. If the room can't come back, the client shows "Room expired".
 - **Heartbeat:** the server sends a `ws` ping every 15 s and terminates the socket if no
   pong arrives within 30 s. The client sends an app `ping` every 20 s; if it gets no
   `pong` within 10 s it closes and reconnects. **Auto-reconnect** uses exponential
