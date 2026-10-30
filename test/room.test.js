@@ -348,6 +348,31 @@ describe('day and replay', () => {
     env.verify();
   });
 
+  it('emoji reactions: everyone sees them during the day, never at night, and spam is dropped', () => {
+    const env = setup();
+    const [ana, ben] = env.conns;
+    env.room.handle(ana, { t: 'react', emoji: '🧀' });
+    assert.equal(ana.last.code, 'WRONG_PHASE', 'not in the lobby');
+    start(env);
+    for (const c of env.conns) env.room.handle(c, { t: 'revealed' });
+    toPhase(env, PHASE.HOUR);
+    for (const c of env.conns) c.take();
+    env.room.handle(ben, { t: 'react', emoji: '😱' });
+    assert.equal(ben.last.code, 'WRONG_PHASE', 'not at night');
+    assert.ok(env.conns.every((c) => !c.sent.some((m) => m.t === 'reaction')));
+
+    toPhase(env, PHASE.DISCUSSION);
+    for (const c of env.conns) c.take();
+    env.room.handle(ben, { t: 'react', emoji: '😱' });
+    for (const c of env.conns) assert.deepEqual(c.take(), [{ t: 'reaction', from: ben.seatId, emoji: '😱' }]);
+    env.room.handle(ben, { t: 'react', emoji: '🤔' }); // too soon after the last one
+    assert.ok(env.conns.every((c) => c.take().length === 0));
+    env.clock.tick(600);
+    env.room.handle(ben, { t: 'react', emoji: '🤔' });
+    assert.equal(ana.last.emoji, '🤔');
+    env.verify();
+  });
+
   it('results show everyone the same outcome', () => {
     const env = setup({ humans: 5 });
     const game = start(env);

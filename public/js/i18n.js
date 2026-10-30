@@ -112,6 +112,8 @@ const EN = {
   'conn.retrySoon': 'Reconnecting… try again in a moment',
   'conn.reconnecting': 'Reconnecting',
   'conn.nowHost': "You're the host now 👑",
+  'react.bar': 'Quick reactions, everyone sees them',
+  'react.aria': 'React with {emoji}',
 
   // Lobby
   'lobby.roomCode': 'ROOM CODE',
@@ -436,6 +438,8 @@ const ZH = {
   'conn.retrySoon': '正在重新连接……请稍后再试',
   'conn.reconnecting': '正在重新连接',
   'conn.nowHost': '你现在是房主了 👑',
+  'react.bar': '快速表情，所有人都能看到',
+  'react.aria': '发送 {emoji}',
 
   'lobby.roomCode': '房间码',
   'lobby.codeAria': '房间码 {code}',

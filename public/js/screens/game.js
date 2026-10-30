@@ -6,6 +6,7 @@ import { h, swap } from '../dom.js';
 import { narrationButton, settingsButton } from '../components.js';
 import { t } from '../i18n.js';
 import { narratesHere, musicHere, lineFor } from '../narrator.js';
+import { reactionBar, REACT_PHASES } from '../reactions.js';
 import * as reveal from './reveal.js';
 import * as night from './night.js';
 import * as day from './day.js';
@@ -24,6 +25,7 @@ let body = null;
 let current = null;
 let narrBtnSlot = null;
 let caption = null;
+let reactSlot = null;
 
 export function render(ctx) {
   lastKey = null;
@@ -31,10 +33,12 @@ export function render(ctx) {
   narrBtnSlot = h('div', { class: 'topbar-right' });
   caption = h('p', { class: 'caption', 'aria-live': 'polite' });
   body = h('div', { class: 'game-body' });
+  reactSlot = reactionBar((msg) => ctx.actions.send(msg));
   const root = h('div', { class: 'game' },
     h('div', { class: 'topbar' }, h('span', { class: 'room-pill' }, t('game.room', { code: ctx.state.view.room.code })), narrBtnSlot),
     caption,
     body,
+    reactSlot,
   );
   update(ctx);
   return root;
@@ -55,6 +59,7 @@ export function update(ctx) {
   } else {
     screen.update?.(ctx);
   }
+  reactSlot.hidden = !REACT_PHASES.has(view.phase.name);
   narrBtnSlot.replaceChildren(narrationButton(narratesHere(view), () => ctx.actions.toggleNarration()),
     settingsButton({ onLanguage: ctx.actions.setLanguage, narration: { on: narratesHere(view), set: ctx.actions.setNarration },
       music: { on: musicHere(view), set: ctx.actions.setMusic },

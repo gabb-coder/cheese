@@ -40,6 +40,7 @@ const SHELL = [
   '/js/music.js',
   '/js/narrator.js',
   '/js/net.js',
+  '/js/reactions.js',
   '/js/screens/connecting.js',
   '/js/screens/day.js',
   '/js/screens/game.js',

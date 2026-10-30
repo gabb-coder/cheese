@@ -10,6 +10,7 @@ import { stepKey, lineFor, narratesHere, musicHere, toggleNarration, speak, unlo
 import { unlockAudio, audioContext, chime, buzz, wantWakeLock, retryWakeLock } from './cues.js';
 import { initMusic, setMusic, trackFor } from './music.js';
 import { t, setLang, errorText } from './i18n.js';
+import { showReaction, clearReactions, REACT_PHASES } from './reactions.js';
 import * as connecting from './screens/connecting.js';
 import * as home from './screens/home.js';
 import * as lobby from './screens/lobby.js';
@@ -173,6 +174,7 @@ function giveUpRejoin() {
 
 function forgetRoom(noticeKey) {
   setMood('evening');
+  clearReactions();
   stopCountdown();
   setMusic(null);
   wantWakeLock(false);
@@ -227,6 +229,7 @@ conn.addEventListener('message', ({ detail: msg }) => {
         && !['LOBBY', 'RESULTS'].includes(state.view.phase.name)) {
         toast(t('endGame.ended'), 4000);
       }
+      if (!REACT_PHASES.has(msg.phase.name)) clearReactions();
       state.freshConnection = false;
       state.view = msg;
       rememberRoom(msg);
@@ -249,6 +252,9 @@ conn.addEventListener('message', ({ detail: msg }) => {
     case 'error':
       handleError(msg);
       break;
+    case 'reaction':
+      showReaction(state.view, msg.from, msg.emoji);
+      return;
     default:
       return;
   }

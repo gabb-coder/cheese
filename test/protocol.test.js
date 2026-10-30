@@ -18,6 +18,7 @@ describe('protocol', () => {
       chooseFollower: { playerId: 'a1b2c3' },
       vote: { playerId: 'a1b2c3' },
       rejoin: { room: 'ABCD', name: 'Ana' },
+      react: { emoji: '🧀' },
     };
     for (const t of INTENT_TYPES) {
       const res = parse({ t, ...(samples[t] ?? {}) });
