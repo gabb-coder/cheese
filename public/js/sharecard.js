@@ -11,7 +11,7 @@ import { avatar, openSheet } from './components.js';
 import { t, lang } from './i18n.js';
 
 const W = 1080;
-const H = 1350;
+const H = 1350; // tallest (4:5); a card with less on it is cut shorter, down to square
 const INK = '#2b1d14';
 const MUTED = '#7a6553';
 const CREAM = '#fff6e3';
@@ -143,26 +143,11 @@ async function drawCard(view, { plainMice = false } = {}) {
 
   const r = view.results;
   const name = (id) => view.players.find((p) => p.id === id)?.name ?? t('someone');
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  // Morning sky, and a cream card like the game's.
-  const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, '#ffe9c8');
-  sky.addColorStop(1, '#ffc98a');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = INK;
-  roundRect(ctx, 48, 58, W - 96, H - 106, 48);
-  ctx.fill();
-  ctx.fillStyle = CREAM;
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 8;
-  roundRect(ctx, 48, 44, W - 96, H - 106, 48);
-  ctx.fill();
-  ctx.stroke();
+  // The contents are drawn first, so the card can be cut to fit them.
+  const content = document.createElement('canvas');
+  content.width = W;
+  content.height = H;
+  const ctx = content.getContext('2d');
 
   // Header: the game's name and the room.
   ctx.fillStyle = INK;
@@ -247,9 +232,11 @@ async function drawCard(view, { plainMice = false } = {}) {
   // The scoreboard, once the room has played more than one round.
   const scores = view.room.scores ?? {};
   const board = view.players.filter((p) => scores[p.id]).sort((a, b) => scores[b.id].wins - scores[a.id].wins || a.name.localeCompare(b.name));
-  // Kept near the bottom, above the footer, however many rows of mice there are.
-  const boardY = Math.max(top + (Math.ceil(players.length / perRow) - 1) * rowH + 190, H - 220);
+  const lastRow = top + (Math.ceil(players.length / perRow) - 1) * rowH;
+  let bottom = lastRow + 130;
+  const boardY = lastRow + 190;
   if (view.room.round > 1 && board.length) {
+    bottom = boardY + 56;
     ctx.fillStyle = INK;
     ctx.textAlign = 'center';
     ctx.font = `600 32px ${DISPLAY}`;
@@ -264,11 +251,31 @@ async function drawCard(view, { plainMice = false } = {}) {
     ctx.fillText(fitText(ctx, lineOf(shown), 880), W / 2, boardY + 46);
   }
 
-  // Footer: where to play.
-  ctx.fillStyle = '#b39c86';
-  ctx.textAlign = 'center';
-  ctx.font = `700 24px ${BODY}`;
-  ctx.fillText(location.host, W / 2, H - 92);
+  // Morning sky, a cream card like the game's, the contents, and where to play.
+  const height = Math.min(H, Math.max(W, Math.ceil(bottom + 150)));
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = height;
+  const out = canvas.getContext('2d');
+  const sky = out.createLinearGradient(0, 0, 0, height);
+  sky.addColorStop(0, '#ffe9c8');
+  sky.addColorStop(1, '#ffc98a');
+  out.fillStyle = sky;
+  out.fillRect(0, 0, W, height);
+  out.fillStyle = INK;
+  roundRect(out, 48, 58, W - 96, height - 106, 48);
+  out.fill();
+  out.fillStyle = CREAM;
+  out.strokeStyle = INK;
+  out.lineWidth = 8;
+  roundRect(out, 48, 44, W - 96, height - 106, 48);
+  out.fill();
+  out.stroke();
+  out.drawImage(content, 0, 0);
+  out.fillStyle = '#b39c86';
+  out.textAlign = 'center';
+  out.font = `700 24px ${BODY}`;
+  out.fillText(location.host, W / 2, height - 92);
 
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('no image'))), 'image/png'));
 }
