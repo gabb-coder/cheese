@@ -40,7 +40,7 @@ describe('translations', () => {
   });
 
   it('every key the screens use exists', () => {
-    const files = [path.join(JS, 'main.js'), path.join(JS, 'components.js'), path.join(JS, 'narrator.js'), path.join(JS, 'clock.js'), path.join(JS, 'reactions.js'),
+    const files = [path.join(JS, 'main.js'), path.join(JS, 'components.js'), path.join(JS, 'narrator.js'), path.join(JS, 'clock.js'), path.join(JS, 'reactions.js'), path.join(JS, 'sharecard.js'),
       ...readdirSync(path.join(JS, 'screens')).map((f) => path.join(JS, 'screens', f))];
     const used = new Set();
     for (const file of files) {
