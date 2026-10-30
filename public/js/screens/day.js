@@ -3,6 +3,7 @@
 import { h, calm } from '../dom.js';
 import { countdown, nightNotes, holdCard, nameOf, listNames, dieFace, avatar, art } from '../components.js';
 import { t, tx } from '../i18n.js';
+import { prepareCard, shareCard } from '../sharecard.js';
 
 export function key(view) {
   const isHost = view.room.hostId === view.me.id;
@@ -256,6 +257,7 @@ function results({ state, actions }) {
 
   const tally = h('ul', { class: 'tally' }, rows.map(tallyRow));
   countUp(tally);
+  prepareCard(view); // ready before anyone taps Share (see sharecard.js)
   if (iWon && !celebrated && !calm()) setTimeout(cheeseConfetti, 900);
   celebrated = true;
 
@@ -291,6 +293,7 @@ function results({ state, actions }) {
     ),
     scoreboard(view),
     h('div', { class: 'actions' },
+      h('button', { class: 'btn-secondary btn-block', onClick: () => shareCard(view) }, t('share.button')),
       isHost
         ? h('button', { class: 'btn-primary btn-block btn-big', onClick: () => actions.send({ t: 'playAgain' }) }, t('results.again'))
         : h('p', { class: 'muted center' }, h('span', { class: 'dots' }, t('results.waitAgain', { name: nameOf(view, view.room.hostId) }))),
