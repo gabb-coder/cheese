@@ -5,7 +5,7 @@
 //
 // Scenarios: reload mid-night keeps your seat; server crash or graceful restart -> the
 // phones rebuild the same room; a room that is really gone -> "Room expired";
-// host drops -> someone else becomes host;
+// every screen fits narrow, short and sideways phones; host drops -> someone else becomes host;
 // cold start -> cached app shows "Waking up the mouse hole" and connects by itself, even
 // when the host answers with its own wake-up page meanwhile.
 
@@ -48,8 +48,8 @@ async function scenario(name, fn) {
   if (process.env.E2E_ONLY && !name.includes(process.env.E2E_ONLY)) return; // e.g. E2E_ONLY="cold start"
   const browser = await chromium.launch();
   const errors = [];
-  const newPlayer = async () => {
-    const ctx = await browser.newContext(PHONE);
+  const newPlayer = async (device = PHONE) => {
+    const ctx = await browser.newContext(device);
     const page = await ctx.newPage();
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION_REFUSED|Failed to load resource/.test(m.text())) errors.push(m.text()); });
@@ -67,17 +67,17 @@ async function scenario(name, fn) {
   }
 }
 
-async function roomWith(newPlayer, names) {
+async function roomWith(newPlayer, names, devices = []) {
   const pages = [];
-  const host = await newPlayer();
+  const host = await newPlayer(devices[0]);
   await host.goto(`${BASE}/?debug=1`);
   await host.fill('#name', names[0]);
   await host.click('text=Create a room');
   await host.waitForSelector('.room-code');
   const code = await host.getAttribute('.room-code', 'data-code');
   pages.push(host);
-  for (const name of names.slice(1)) {
-    const p = await newPlayer();
+  for (const [i, name] of names.slice(1).entries()) {
+    const p = await newPlayer(devices[i + 1]);
     await p.goto(`${BASE}/?r=${code}`);
     await p.fill('#name', name);
     await p.click('button:has-text("Join")');
@@ -173,6 +173,31 @@ await scenario('rebuilding gives up when the room really is gone', async (newPla
   });
   await p.reload();
   await p.waitForSelector('text=Room expired', { timeout: 10000 });
+});
+
+await scenario('every screen fits narrow, short and sideways phones (no sideways scrolling)', async (newPlayer) => {
+  const sized = (width, height) => ({ ...PHONE, viewport: { width, height }, isMobile: width < 1000, hasTouch: true });
+  const devices = [sized(280, 653), sized(320, 568), sized(667, 375), { viewport: { width: 1280, height: 800 } }];
+  const { pages } = await roomWith(newPlayer, ['Bartholomew Chia', 'Maximilian Ovens', 'Christopher Lee', 'Jonathan Tan'], devices);
+  const check = async (step) => {
+    for (const [i, p] of pages.entries()) {
+      const extra = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      if (extra > 0) throw new Error(`${step}: ${devices[i].viewport.width}x${devices[i].viewport.height} scrolls sideways by ${extra}px`);
+    }
+  };
+  await check('lobby');
+  await pages[0].click('text=Start the game');
+  for (const p of pages) await p.waitForSelector('text=Next: roll your die');
+  await check('role card');
+  for (const p of pages) { await p.click('text=Next: roll your die'); await p.click('.cup-stage'); }
+  await check('dice cup');
+  for (const p of pages) await p.click("text=I've memorized it");
+  await pages[0].waitForSelector('.react-bar:not([hidden])', { timeout: 60000 });
+  await check('discussion');
+  await pages[0].click('text=vote now');
+  for (const p of pages) { await p.waitForSelector('.vote-choice'); await p.click('.vote-choice >> nth=0'); await p.click('.btn-big'); }
+  await pages[0].waitForSelector('.verdict', { timeout: 20000 });
+  await check('results');
 });
 
 await scenario('host drops: another player becomes host after the grace period', async (newPlayer) => {
